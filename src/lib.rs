@@ -4,6 +4,9 @@
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
+mod errors;
+pub use errors;
+
 #[test]
 fn test_get_version() {
     // import all of our stuff
@@ -18,13 +21,3 @@ fn test_get_version() {
         println!("Version: {}", std::ffi::CStr::from_ptr(cLibVersion.as_ptr()).to_str().unwrap());
     }
 }
-
-// TODO: PQ-RPC development plan
-// - [ ] Generate C bindings for the PQ library
-//   - [ ] stdbool.h missing for Sepia2_Def.h; Need stdenv.cc.cc.lib added to LD_LIBRARY_PATH
-// - [ ] Write shims that transform pointer mutation output parameters in req->resp function calls
-//   - macro to generate shims for the RPC that transform outputs in immutable response objects
-// - [ ] Generate protobuf definition from the later API
-// - [ ] Tonic server implementation that handles gRPC interface to this API
-
-

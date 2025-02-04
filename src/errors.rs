@@ -1,6 +1,5 @@
 use log::error;
 
-
 include!(concat!(env!("OUT_DIR"), "/error_bindings.rs"));
 
 #[repr(i32)]
