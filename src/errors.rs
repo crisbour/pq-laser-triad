@@ -377,6 +377,7 @@ impl ErrorCode {
         {
             Ok(())
         } else {
+            use Sepia2Error::*;
             // TODO: Write macro that populates this conversion from C define to Rust enum
             let sepia2_error = match raw {
                 SEPIA2_ERR_FW_MEMORY_ALLOCATION_ERROR                          => FwMemoryAllocationError,
@@ -754,7 +755,8 @@ impl ErrorCode {
 }
 
 impl fmt::Display for Sepia2Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> &str {
+        use Sepia2Error::*;
         let description = match self {
             FwMemoryAllocationError                       => "FW: memory allocation error",
             FwCrcErrorWhileCheckingScm828Module           => "FW: CRC error while checking SCM 828 module",
