@@ -16,3 +16,11 @@ PQ-RPC development plan:
 - [ ] Generate protobuf definition from the later API
 - [ ] Tonic server implementation that handles gRPC interface to this API
 
+## Dev Env
+
+At the moment I am using a `nix-shell` that generates all configurations locally (rust, wine and cargo), but
+lock files easily break due to Wine exiting unexpectedly.
+
+- [cross-rs](https://github.com/cross-rs/cross) can be used as an all rounding
+alternative specifically build for cross compilig Rust projects
+- Find another nix cross-compile alternative
