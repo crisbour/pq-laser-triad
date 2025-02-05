@@ -1,9 +1,10 @@
+#![allow(non_snake_case)]
 
-type Result<T> = Result<T, Sepia2Error>;
+type Result<T> = std::result::Result<T, Sepia2Error>;
 
 struct Sepia2State {
     sepia2_lib: Sepia2_Lib,
-};
+}
 
 pub fn LIB_DecodeError(err_code: i32) -> Result<String> {
     let mut c_err_string: ::std::os::raw::c_char;
@@ -50,7 +51,7 @@ pub fn LIB_IsRunningOnWine() -> Result<bool> {
 struct USBDevice {
     ProductModel: String,
     SerialNumber: String,
-};
+}
 pub fn USB_OpenDevice(dev_idx: u32) -> Result<USBDevice> {
 
     let mut cProductModel: ::std::os::raw::c_char;
