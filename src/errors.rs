@@ -1,6 +1,7 @@
-use log::error;
+use crate::bindings::errors::*;
+use std::fmt;
 
-include!(concat!(env!("OUT_DIR"), "/error_bindings.rs"));
+//type Result<T> = std::result::Result<T, Sepia2Error>;
 
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -371,9 +372,11 @@ pub enum Sepia2Error {
     LibUnknownErrorCode                           = SEPIA2_ERR_LIB_UNKNOWN_ERROR_CODE,                              //  "LIB: unknown error code"
 }
 
-impl ErrorCode {
+impl std::error::Error for Sepia2Error {}
+
+impl Sepia2Error {
     pub fn from_raw(raw: i32) -> Result<(), Self> {
-        if raw >0
+        if raw >= 0
         {
             Ok(())
         } else {
@@ -755,7 +758,7 @@ impl ErrorCode {
 }
 
 impl fmt::Display for Sepia2Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> &str {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use Sepia2Error::*;
         let description = match self {
             FwMemoryAllocationError                       => "FW: memory allocation error",
@@ -1124,5 +1127,44 @@ impl fmt::Display for Sepia2Error {
             LibUnknownErrorCode                           => "LIB: unknown error code",
         };
         write!(f, "{}", description)
+    }
+}
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use test_log;
+
+    #[test]
+    fn test_error_conversion() {
+        assert_eq!(Sepia2Error::LibUnknownUsbHandle.as_raw(),                 SEPIA2_ERR_LIB_UNKNOWN_USB_HANDLE                  );
+        assert_eq!(Sepia2Error::LibTooManyUsbHandles.as_raw(),                SEPIA2_ERR_LIB_TOO_MANY_USB_HANDLES                );
+        assert_eq!(Sepia2Error::I2cDeviceError.as_raw(),                      SEPIA2_ERR_I2C_DEVICE_ERROR                        );
+        assert_eq!(Sepia2Error::Lmp1AdcTablesNotFound.as_raw(),               SEPIA2_ERR_LMP1_ADC_TABLES_NOT_FOUND               );
+        assert_eq!(Sepia2Error::Lmp1AdcOverflow.as_raw(),                     SEPIA2_ERR_LMP1_ADC_OVERFLOW                       );
+        assert_eq!(Sepia2Error::Lmp1AdcUnderflow.as_raw(),                    SEPIA2_ERR_LMP1_ADC_UNDERFLOW                      );
+        assert_eq!(Sepia2Error::ScmVoltageLimitsTableNotFound.as_raw(),       SEPIA2_ERR_SCM_VOLTAGE_LIMITS_TABLE_NOT_FOUND      );
+        assert_eq!(Sepia2Error::ScmVoltageScalingListNotFound.as_raw(),       SEPIA2_ERR_SCM_VOLTAGE_SCALING_LIST_NOT_FOUND      );
+        assert_eq!(Sepia2Error::ScmRepeatedlyMeasuredVoltageFailure.as_raw(), SEPIA2_ERR_SCM_REPEATEDLY_MEASURED_VOLTAGE_FAILURE );
+        assert_eq!(Sepia2Error::ScmPowerSupplyLine0VoltageTooLow.as_raw(),    SEPIA2_ERR_SCM_POWER_SUPPLY_LINE_0_VOLTAGE_TOO_LOW  );
+        assert_eq!(Sepia2Error::ScmPowerSupplyLine1VoltageTooLow.as_raw(),    SEPIA2_ERR_SCM_POWER_SUPPLY_LINE_1_VOLTAGE_TOO_LOW  );
+    }
+
+    #[test]
+    fn test_into_error_type() {
+        assert_eq!(Sepia2Error::from_raw(SEPIA2_ERR_LIB_UNKNOWN_USB_HANDLE),                  Err(Sepia2Error::LibUnknownUsbHandle                ));
+        assert_eq!(Sepia2Error::from_raw(SEPIA2_ERR_LIB_TOO_MANY_USB_HANDLES),                Err(Sepia2Error::LibTooManyUsbHandles               ));
+        assert_eq!(Sepia2Error::from_raw(SEPIA2_ERR_I2C_DEVICE_ERROR),                        Err(Sepia2Error::I2cDeviceError                     ));
+        assert_eq!(Sepia2Error::from_raw(SEPIA2_ERR_LMP1_ADC_TABLES_NOT_FOUND),               Err(Sepia2Error::Lmp1AdcTablesNotFound              ));
+        assert_eq!(Sepia2Error::from_raw(SEPIA2_ERR_LMP1_ADC_OVERFLOW),                       Err(Sepia2Error::Lmp1AdcOverflow                    ));
+        assert_eq!(Sepia2Error::from_raw(SEPIA2_ERR_LMP1_ADC_UNDERFLOW),                      Err(Sepia2Error::Lmp1AdcUnderflow                   ));
+        assert_eq!(Sepia2Error::from_raw(SEPIA2_ERR_SCM_VOLTAGE_LIMITS_TABLE_NOT_FOUND),      Err(Sepia2Error::ScmVoltageLimitsTableNotFound      ));
+        assert_eq!(Sepia2Error::from_raw(SEPIA2_ERR_SCM_VOLTAGE_SCALING_LIST_NOT_FOUND),      Err(Sepia2Error::ScmVoltageScalingListNotFound      ));
+        assert_eq!(Sepia2Error::from_raw(SEPIA2_ERR_SCM_REPEATEDLY_MEASURED_VOLTAGE_FAILURE), Err(Sepia2Error::ScmRepeatedlyMeasuredVoltageFailure));
+        assert_eq!(Sepia2Error::from_raw(SEPIA2_ERR_SCM_POWER_SUPPLY_LINE_0_VOLTAGE_TOO_LOW), Err(Sepia2Error::ScmPowerSupplyLine0VoltageTooLow   ));
+        assert_eq!(Sepia2Error::from_raw(SEPIA2_ERR_SCM_POWER_SUPPLY_LINE_1_VOLTAGE_TOO_LOW), Err(Sepia2Error::ScmPowerSupplyLine1VoltageTooLow   ));
+
+        assert_eq!(Sepia2Error::from_raw(0), Ok(()));
     }
 }
