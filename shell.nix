@@ -1,15 +1,4 @@
-#with import <nixpkgs> {};
-#stdenv.mkDerivation {
-#  name = "clang-dev-environment";
-#  buildInputs = [
-#    llvmPackages_18.clang
-#    llvmPackages_18.libclang
-#  ];
-#  shellHook = ''
-#    export LIBCLANG_PATH="${pkgs.llvmPackages_18.libclang.lib}/lib"
-#  '';
-#}
-
+# Inspired from: https://github.com/aywrite/arche/blob/39e30ad2884bd85722a3c979a9478b2b26b9e7a5/shell.nix#L17
 # TODO: shell with attribute to choose between Linux and Windows targets
 
 { pkgs ? import <nixpkgs> {} }:
@@ -74,7 +63,7 @@ pkgs.mkShell rec {
 
     # Ensures our windows target is added via rustup.
     rustup target add "${rustBuildTargetTriple}"
-    
+
     export LIBCLANG_PATH="${pkgs.llvmPackages_18.libclang.lib}/lib"
     '';
   RUSTFLAGS = (builtins.map (a: ''-L ${a}/lib'') [
