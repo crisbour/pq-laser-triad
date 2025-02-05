@@ -7,7 +7,11 @@ edition = "2021"
 
 [dependencies]
 fmt = "0.1.0"
+lazy_static = "1.5.0"
+libloading = "0.8.6"
 log = "0.4.25"
+tempfile = "3.16.0"
+test-log = "0.2.17"
 
 [build-dependencies]
 bindgen = "0.71.0"
