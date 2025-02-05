@@ -1,3 +1,7 @@
+#![allow(non_upper_case_globals)]
+#![allow(non_camel_case_types)]
+#![allow(non_snake_case)]
+
 pub mod api {
     include!(concat!(env!("OUT_DIR"), "/api.rs"));
 
@@ -9,18 +13,11 @@ pub mod api {
     pub const SEPIA2_PATH: &str = concat!(env!("OUT_DIR"), "\\Sepia2_Lib64.dll");
 
     // TODO:Load library in lazy_static to be used across the library directly
-    //const SEPIA2_BINARY: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "\\Sepia2_Lib.dll"));
-    //lazy_static::lazy_static! {
-    //    static ref SEPIA2: Sepia2_Lib = {
-    //        use std::io::Write;
-    //
-    //        let mut temp_file = tempfile::NamedTempFile::new().unwrap();
-    //        temp_file.write_all(&SEPIA2_BINARY).unwrap();
-    //        let (_, path) = temp_file.keep().unwrap();
-    //
-    //        unsafe { Sepia2_Lib::new(&path) }.unwrap()
-    //    };
-    //}
+    lazy_static::lazy_static! {
+        pub static ref SEPIA2: Sepia2_Lib = {
+            unsafe { Sepia2_Lib::new(SEPIA2_PATH) }.expect("Unable to load Sepia2 dynamic library!")
+        };
+    }
 
     #[cfg(test)]
     mod test {
@@ -32,11 +29,8 @@ pub mod api {
         #[test]
         fn test_get_version() {
             println!("Try to load Sepia2 lib from {}", SEPIA2_PATH);
-            let sepia2_lib = unsafe {
-                Sepia2_Lib::new(SEPIA2_PATH).expect("Unable to load Sepia2 dynamic library!")
-            };
             let mut cLibVersion: [i8; 256] = [0; 256];
-            let iRetVal = unsafe { sepia2_lib.SEPIA2_LIB_GetVersion(cLibVersion.as_mut_ptr()) };
+            let iRetVal = unsafe { SEPIA2.SEPIA2_LIB_GetVersion(cLibVersion.as_mut_ptr()) };
             assert_eq!(iRetVal, 0);
             info!("Version: {}", unsafe {
                 std::ffi::CStr::from_ptr(cLibVersion.as_ptr())
@@ -49,14 +43,11 @@ pub mod api {
         #[test]
         fn test_error_msg() {
             println!("Try to load Sepia2 lib from {}", SEPIA2_PATH);
-            let sepia2_lib = unsafe {
-                Sepia2_Lib::new(SEPIA2_PATH).expect("Unable to load Sepia2 dynamic library!")
-            };
             let mut cErrorString: [i8; 256] = [0; 256];
 
             // Test error code -1001
             let iRetVal =
-                unsafe { sepia2_lib.SEPIA2_LIB_DecodeError(-1001, cErrorString.as_mut_ptr()) };
+                unsafe { SEPIA2.SEPIA2_LIB_DecodeError(-1001, cErrorString.as_mut_ptr()) };
             info!(
                 "Match succesful of error string '{}' for code {}",
                 unsafe {
@@ -78,7 +69,7 @@ pub mod api {
 
             // Test error code -9999
             let iRetVal =
-                unsafe { sepia2_lib.SEPIA2_LIB_DecodeError(-9999, cErrorString.as_mut_ptr()) };
+                unsafe { SEPIA2.SEPIA2_LIB_DecodeError(-9999, cErrorString.as_mut_ptr()) };
             info!(
                 "Match succesful of error string '{}' for code {}",
                 unsafe {
@@ -103,12 +94,9 @@ pub mod api {
         #[test]
         fn test_usb_version() {
             println!("Try to load Sepia2 lib from {}", SEPIA2_PATH);
-            let sepia2_lib = unsafe {
-                Sepia2_Lib::new(SEPIA2_PATH).expect("Unable to load Sepia2 dynamic library!")
-            };
             let mut cLibVersion: [i8; 256] = [0; 256];
             let iRetVal =
-                unsafe { sepia2_lib.SEPIA2_LIB_GetLibUSBVersion(cLibVersion.as_mut_ptr()) };
+                unsafe { SEPIA2.SEPIA2_LIB_GetLibUSBVersion(cLibVersion.as_mut_ptr()) };
             assert_eq!(iRetVal, 0);
             info!("USB Version: {}", unsafe {
                 std::ffi::CStr::from_ptr(cLibVersion.as_ptr())
@@ -121,11 +109,8 @@ pub mod api {
         #[test]
         fn test_wine() {
             println!("Try to load Sepia2 lib from {}", SEPIA2_PATH);
-            let sepia2_lib = unsafe {
-                Sepia2_Lib::new(SEPIA2_PATH).expect("Unable to load Sepia2 dynamic library!")
-            };
             let mut wine_bool: u8 = 0;
-            let iRetVal = unsafe { sepia2_lib.SEPIA2_LIB_IsRunningOnWine(&mut wine_bool) };
+            let iRetVal = unsafe { SEPIA2.SEPIA2_LIB_IsRunningOnWine(&mut wine_bool) };
             assert_eq!(iRetVal, 0);
             info!("Is using wine? Response = {}", wine_bool);
         }
@@ -153,15 +138,12 @@ mod test {
     #[test]
     fn test_usb_list() {
         println!("Try to load Sepia2 lib from {}", SEPIA2_PATH);
-        let sepia2_lib = unsafe {
-            Sepia2_Lib::new(SEPIA2_PATH).expect("Unable to load Sepia2 dynamic library!")
-        };
 
         for i in 0..SEPIA2_MAX_USB_DEVICES {
             let mut cProductModel: [i8; 256] = [0; 256];
             let mut cSerialNum: [i8; 256] = [0; 256];
             let iRetVal = unsafe {
-                sepia2_lib.SEPIA2_USB_OpenGetSerNumAndClose(
+                SEPIA2.SEPIA2_USB_OpenGetSerNumAndClose(
                     i as i32,
                     cProductModel.as_mut_ptr(),
                     cSerialNum.as_mut_ptr(),

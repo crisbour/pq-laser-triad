@@ -8,9 +8,10 @@ fn main() {
 
     // Tell cargo to invalidate the built crate whenever the wrapper changes
     println!("cargo:rerun-if-changed=wrapper.h");
+    println!("cargo:rerun-if-changed=src/bindings.rs");
 
     let (target_os, target_arch) = get_target_os_and_arch();
-    let (lib_name, lib_extension) = get_lib_name_and_extension(&target_os, target_arch);
+    let (lib_name, lib_extension) = get_lib_name_and_extension(&target_os, &target_arch);
     let src_dir = setup_src_dir(&target_os, &target_arch);
     let target_dir = setup_target_dir(&target_os);
     setup_lib(&lib_name, &lib_extension, &src_dir, &target_dir);
@@ -80,14 +81,14 @@ fn main() {
         .expect("Unable to generate bindings");
 
     let err_bindings = bindgen::Builder::default()
-        .header("./libsepia2/include/Sepia2_ErrorCodes.h")
+        .header("./native/include/Sepia2_ErrorCodes.h")
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .generate()
         .expect("Unable to generate bindings");
 
     let type_bindings = bindgen::Builder::default()
-        .header("libsepia2/include/Sepia2_Def.h")
-        .header("libsepia2/include/Portabt.h")
+        .header("native/include/Sepia2_Def.h")
+        .header("native/include/Portabt.h")
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         // FIXME: Allow only what is useful for Prima Laser
         //.allowlist_type("T_PRI_Constants")
@@ -115,6 +116,7 @@ enum OS {
     MacOS,
 }
 
+#[derive(Debug)]
 enum Arch {
     X86,
     X64,
@@ -137,11 +139,12 @@ fn get_target_os_and_arch() -> (OS, Arch) {
     }
 }
 
-fn get_lib_name_and_extension(target_os: &OS, target_arch: &ARCH) -> (String, String) {
+fn get_lib_name_and_extension(target_os: &OS, target_arch: &Arch) -> (String, String) {
     let lib_name = if matches!(target_os, OS::Windows) {
         match target_arch {
-            ARCH::X86 => "Sepia2_Lib",
-            ARCH::X64 => "Sepia2_Lib64",
+            Arch::X86 => "Sepia2_Lib",
+            Arch::X64 => "Sepia2_Lib64",
+            unsupported => panic!("Architecture {:?} not supported for Windows library", unsupported),
         }
     } else {
         panic!("Only windows library exists");
