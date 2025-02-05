@@ -9,11 +9,13 @@
 #ifndef __WINE_SEPIA2_LIB64_DLL_H
 #define __WINE_SEPIA2_LIB64_DLL_H
 
-#include "windef.h"
-#include "wine/debug.h"
-#include "winbase.h"
-#include "winnt.h"
+//#include "windef.h"
+//#include "wine/debug.h"
+//#include "winbase.h"
+//#include "winnt.h"
 
+#include "./Portabt.h"
+#include "./Sepia2_Def.h"
 
 int __stdcall SEPIA2_LIB64_SEPIA2_COM_DecodeModuleType(int iModuleType, char * cModulType);
 int __stdcall SEPIA2_LIB64_SEPIA2_COM_DecodeModuleTypeAbbr(int iModuleType, char * cModulTypeAbbr);
