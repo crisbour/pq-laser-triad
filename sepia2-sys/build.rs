@@ -86,13 +86,20 @@ fn main() {
         .generate()
         .expect("Unable to generate bindings");
 
-    let type_bindings = bindgen::Builder::default()
+    let constants_bindings = bindgen::Builder::default()
+        .header("native/include/Sepia2_Def.h")
+        .header("native/include/Portabt.h")
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+        .blocklist_type(".*")
+        .generate()
+        .expect("Unable to generate bindings");
+
+    let types_bindings = bindgen::Builder::default()
         .header("native/include/Sepia2_Def.h")
         .header("native/include/Portabt.h")
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         // FIXME: Allow only what is useful for Prima Laser
-        //.allowlist_type("T_PRI_Constants")
-        //.allowlist_type("T_ptrPRI_Constants")
+        .allowlist_type(".*")
         .generate()
         .expect("Unable to generate bindings");
 
@@ -104,7 +111,11 @@ fn main() {
         .write_to_file(target_dir.join("errors.rs"))
         .expect("Couldn't write bindings!");
 
-    type_bindings
+    constants_bindings
+        .write_to_file(target_dir.join("constants.rs"))
+        .expect("Couldn't write bindings!");
+
+    types_bindings
         .write_to_file(target_dir.join("types.rs"))
         .expect("Couldn't write bindings!");
 }

@@ -1,4 +1,4 @@
-use crate::bindings::errors::*;
+use sepia2_sys::errors::*;
 use std::fmt;
 
 //type Result<T> = std::result::Result<T, Sepia2Error>;
