@@ -27,9 +27,9 @@ This is composed of three projects
 
 
 For more information check the README for each one of these sub-projects:
-- [sepia2-sys](./sepia2-sys/README.md)
-- [sepia2](./sepia2/README.md)
-- [sepia2-grpc](./sepia2-grpc/README.md)
+- [sepia2-sys](./sepia2-sys)
+- [sepia2](./sepia2)
+- [sepia2-grpc](./sepia2-grpc)
 
 ## Architecture
 
