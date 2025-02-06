@@ -1,189 +1,188 @@
 #![allow(non_snake_case)]
 
+// Crate imports
 use crate::bindings::api::*;
+use crate::error::Sepia2Error;
+
+// C types imports as casting helpers
+use std::ffi::{CStr, CString};
+use std::os::raw::{c_char, c_int, c_uchar};
 
 type Result<T> = std::result::Result<T, Sepia2Error>;
 
-struct Sepia2State {
-    sepia2_lib: Sepia2_Lib,
+// NOTE: Sepia2 doesn't return any "const *char", so this function is not useful
+fn take_ownership_string(ptr: *const c_char) -> Option<String> {
+    unsafe {
+        if ptr.is_null() {
+            None
+        } else {
+            Some(CStr::from_ptr(ptr).to_str().unwrap().to_string())
+        }
+    }
 }
 
+fn to_string(c_str: *const c_char) -> String {
+    unsafe { CStr::from_ptr(c_str) }
+        .to_string_lossy()
+        .into_owned()
+}
+
+// WARN: In the FFI that follows I used Rust primitives when possible instead of the std::os::raw
+// Is there a concern about the type equivalence across architectures? i.e. `c_int === i32`
+
+// TODO: Use constants from Sepia2_Def.h to set length of buffers instead of hardcoded values
+
+// TODO: How to combine Sepia2Error into enum with any other possible Error type that is being used
+// here, such that we can catch other errors as well instead calling unwrap?
 pub fn LIB_DecodeError(err_code: i32) -> Result<String> {
-    let mut c_err_string: ::std::os::raw::c_char;
-    match Sepia2Error::from_raw(
-        unsafe { SEPIA2.SEPIA2_LIB_DecodeError(err_code, c_err_string.as_ptr()) }
-    ) {
-        Ok(_) => Ok(to_string(c_err_string)),
+    let mut c_err_string: [c_char; 64] = [0; 64];
+    match Sepia2Error::from_raw(unsafe {
+        SEPIA2.SEPIA2_LIB_DecodeError(err_code, c_err_string.as_mut_ptr())
+    }) {
+        Ok(_) => Ok(to_string(c_err_string.as_ptr())),
         Err(e) => Err(e),
     }
 }
 pub fn LIB_GetVersion() -> Result<String> {
-    let mut c_lib_version: ::std::os::raw::c_char;
-    match Sepia2Error::from_raw( unsafe {
-        SEPIA2.SEPIA2_LIB_GetVersion(c_lib_version.as_ptr())
-    }) {
-        Ok(_) => Ok(to_string(c_lib_version)),
+    let mut c_lib_version: [c_char; 12] = [0; 12];
+    match Sepia2Error::from_raw(unsafe { SEPIA2.SEPIA2_LIB_GetVersion(c_lib_version.as_mut_ptr()) })
+    {
+        Ok(_) => Ok(to_string(c_lib_version.as_ptr())),
         Err(e) => Err(e),
     }
 }
 pub fn LIB_GetLibUSBVersion() -> Result<String> {
-    let mut cLibUSBVersion: ::std::os::raw::c_char;
-    match Sepia2Error::from_raw( unsafe {
-        SEPIA2.SEPIA2_LIB_GetLibUSBVersion(cLibUSBVersion.as_ptr())
+    let mut cLibUSBVersion: [c_char; 3] = [0; 3];
+    match Sepia2Error::from_raw(unsafe {
+        SEPIA2.SEPIA2_LIB_GetLibUSBVersion(cLibUSBVersion.as_mut_ptr())
     }) {
-        Ok(_) => Ok(to_string(cLibUSBVersion)),
+        Ok(_) => Ok(to_string(cLibUSBVersion.as_ptr())),
         Err(e) => Err(e),
     }
 }
 pub fn LIB_IsRunningOnWine() -> Result<bool> {
+    let mut pbIsRunningOnWine: u8 = 0;
 
-    let mut pbIsRunningOnWine: u8,
-
-    match Sepia2Error::from_raw( unsafe {
-        SEPIA2.SEPIA2_LIB_IsRunningOnWine(
-            pbIsRunningOnWine,
-        )
+    match Sepia2Error::from_raw(unsafe {
+        SEPIA2.SEPIA2_LIB_IsRunningOnWine(&mut pbIsRunningOnWine)
     }) {
-        Ok(_) => {
-            Ok(pbIsRunningOnWine != 0)
-        },
+        Ok(_) => Ok(pbIsRunningOnWine != 0),
         Err(e) => Err(e),
     }
 }
 
+#[derive(Debug)]
 struct USBDevice {
     ProductModel: String,
     SerialNumber: String,
 }
-pub fn USB_OpenDevice(dev_idx: u32) -> Result<USBDevice> {
+pub fn USB_OpenDevice(dev_idx: i32) -> Result<USBDevice> {
+    let mut cProductModel: [c_char; 64] = [0; 64];
+    let mut cSerialNumber: [c_char; 64] = [0; 64];
 
-    let mut cProductModel: ::std::os::raw::c_char;
-    let mut cSerialNumber: ::std::os::raw::c_char;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_USB_OpenDevice(
             dev_idx, // iDevIdx,
             cProductModel.as_mut_ptr(),
             cSerialNumber.as_mut_ptr(),
         )
     }) {
-        Ok(_) => {
-            Ok( USBDevice {
-                ProductModel: to_string(cProductModel),
-                SerialNumber: to_string(cSerialNumber),
-            })
-        },
+        Ok(_) => Ok(USBDevice {
+            ProductModel: to_string(cProductModel.as_ptr()),
+            SerialNumber: to_string(cSerialNumber.as_ptr()),
+        }),
         Err(e) => Err(e),
     }
 }
-pub fn USB_OpenGetSerNumAndClose(dev_idx: u32) -> Result<USBDevice> {
+pub fn USB_OpenGetSerNumAndClose(dev_idx: i32) -> Result<USBDevice> {
+    let mut cProductModel: [c_char; 64] = [0; 64];
+    let mut cSerialNumber: [c_char; 64] = [0; 64];
 
-    let mut cProductModel: ::std::os::raw::c_char;
-    let mut cSerialNumber: ::std::os::raw::c_char;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_USB_OpenGetSerNumAndClose(
             dev_idx, // iDevIdx,
             cProductModel.as_mut_ptr(),
             cSerialNumber.as_mut_ptr(),
         )
     }) {
-        Ok(_) => {
-            Ok( USBDevice {
-                ProductModel: to_string(cProductModel),
-                SerialNumber: to_string(cSerialNumber),
-            })
-        },
+        Ok(_) => Ok(USBDevice {
+            ProductModel: to_string(cProductModel.as_ptr()),
+            SerialNumber: to_string(cSerialNumber.as_ptr()),
+        }),
         Err(e) => Err(e),
     }
 }
-pub fn USB_GetStrDescriptor(dev_idx: u32) -> Result<String> {
+pub fn USB_GetStrDescriptor(dev_idx: i32) -> Result<String> {
+    let mut cDescriptor: [c_char; 64] = [0; 64];
 
-    let mut cDescriptor: ::std::os::raw::c_char;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_USB_GetStrDescriptor(
             dev_idx, // iDevIdx,
             cDescriptor.as_mut_ptr(),
         )
     }) {
-        Ok(_) => {
-            Ok(to_string(cDescriptor))
-        },
+        Ok(_) => Ok(to_string(cDescriptor.as_ptr())),
         Err(e) => Err(e),
     }
 }
-pub fn USB_GetStrDescrByIdx(dev_idx: u32, descr_idx: u32) -> Result<String> {
+pub fn USB_GetStrDescrByIdx(dev_idx: i32, descr_idx: i32) -> Result<String> {
+    let mut cDescriptor: [c_char; 64] = [0; 64];
 
-    let mut cDescriptor: ::std::os::raw::c_char;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_USB_GetStrDescrByIdx(
-            dev_idx, // iDevIdx,
+            dev_idx,   // iDevIdx,
             descr_idx, // iDescrIdx,
-            cDescriptor,
+            cDescriptor.as_mut_ptr(),
         )
     }) {
-        Ok(_) => {
-            Ok(to_string(cDescriptor))
-        },
+        Ok(_) => Ok(to_string(cDescriptor.as_ptr())),
         Err(e) => Err(e),
     }
 }
-pub fn USB_IsOpenDevice(dev_idx: u32) -> Result<bool> {
+pub fn USB_IsOpenDevice(dev_idx: i32) -> Result<bool> {
+    let mut pbIsOpenDevice: u8 = 0;
 
-    let mut pbIsOpenDevice: u8;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_USB_IsOpenDevice(
             dev_idx, // iDevIdx,
-            pbIsOpenDevice.as_mut_ptr(),
+            &mut pbIsOpenDevice,
         )
     }) {
-        Ok(_) => {
-            Ok(pbIsOpenDevice)
-        },
+        Ok(_) => Ok(pbIsOpenDevice != 0),
         Err(e) => Err(e),
     }
 }
-pub fn USB_CloseDevice(dev_idx: u32) -> Result<()> {
-    unsafe {
-        SEPIA2.SEPIA2_USB_CloseDevice(dev_idx)
-    }
+pub fn USB_CloseDevice(dev_idx: i32) -> Result<()> {
+    Sepia2Error::from_raw(unsafe { SEPIA2.SEPIA2_USB_CloseDevice(dev_idx) })
 }
 pub fn FWR_DecodeErrPhaseName(err_phase: i32) -> Result<String> {
+    let mut cErrorPhase: [c_char; 64] = [0; 64];
 
-    let mut cErrorPhase: ::std::os::raw::c_char;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_FWR_DecodeErrPhaseName(
             err_phase, // iErrPhase,
-            cErrorPhase,
+            cErrorPhase.as_mut_ptr(),
         )
     }) {
-        Ok(_) => {
-            Ok(to_string(cErrorPhase))
-        },
+        Ok(_) => Ok(to_string(cErrorPhase.as_ptr())),
         Err(e) => Err(e),
     }
 }
-pub fn FWR_GetVersion(dev_idx: u32) -> Result<String> {
+pub fn FWR_GetVersion(dev_idx: i32) -> Result<String> {
+    let mut cFWVersion: [c_char; 64] = [0; 64];
 
-    let mut cFWVersion: ::std::os::raw::c_char;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_FWR_GetVersion(
             dev_idx, // iDevIdx,
             cFWVersion.as_mut_ptr(),
         )
     }) {
-        Ok(_) => {
-            Ok(to_string(cFWVersion))
-        },
+        Ok(_) => Ok(to_string(cFWVersion.as_ptr())),
         Err(e) => Err(e),
     }
 }
 
+#[derive(Debug)]
 struct FwError {
     err_code: i32,
     phase: i32,
@@ -192,185 +191,169 @@ struct FwError {
     condition: String,
 }
 
-pub fn FWR_GetLastError(dev_idx: u32) -> Result<FwError> {
+pub fn FWR_GetLastError(dev_idx: i32) -> Result<FwError> {
+    let mut piErrCode: i32 = 0;
+    let mut piPhase: i32 = 0;
+    let mut piLocation: i32 = 0;
+    let mut piSlot: i32 = 0;
+    let mut cCondition: [c_char; 64] = [0; 64];
 
-    let mut piErrCode: ::std::os::raw::c_int;
-    let mut piPhase: ::std::os::raw::c_int;
-    let mut piLocation: ::std::os::raw::c_int;
-    let mut piSlot: ::std::os::raw::c_int;
-    let mut cCondition: ::std::os::raw::c_char;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_FWR_GetLastError(
             dev_idx, // iDevIdx,
-            piErrCode.as_mut_ptr(),
-            piPhase.as_mut_ptr(),
-            piLocation.as_mut_ptr(),
-            piSlot.as_mut_ptr(),
+            &mut piErrCode,
+            &mut piPhase,
+            &mut piLocation,
+            &mut piSlot,
             cCondition.as_mut_ptr(),
         )
     }) {
-        Ok(_) => {
-            Ok( FwError {
-                err_code: piErrCode,
-                phase: piPhase,
-                location: piLocation,
-                slot: piSlot,
-                condition: to_string(cCondition),
-            })
-        },
+        Ok(_) => Ok(FwError {
+            err_code: piErrCode,
+            phase: piPhase,
+            location: piLocation,
+            slot: piSlot,
+            condition: to_string(cCondition.as_ptr()),
+        }),
         Err(e) => Err(e),
     }
 }
-pub fn FWR_GetWorkingMode(dev_idx: u32) -> Result<i32> {
+pub fn FWR_GetWorkingMode(dev_idx: i32) -> Result<i32> {
+    let mut piMode: i32 = 0;
 
-    let mut piMode: ::std::os::raw::c_int;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_FWR_GetWorkingMode(
             dev_idx, // iDevIdx,
-            piMode.as_mut_ptr(),
+            &mut piMode,
         )
     }) {
-        Ok(_) => {
-            Ok(piMode)
-        },
+        Ok(_) => Ok(piMode),
         Err(e) => Err(e),
     }
 }
 pub fn FWR_SetWorkingMode(dev_idx: i32, mode: i32) -> Result<()> {
-    unsafe {
+    Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_FWR_SetWorkingMode(
             dev_idx, // iDevIdx,
-            mode, // iMode,
+            mode,    // iMode,
         )
-    }
+    })
 }
-pub fn FWR_RollBackToPermanentValues(dev_idx: u32) -> Result<()> {
-    unsafe {
+pub fn FWR_RollBackToPermanentValues(dev_idx: i32) -> Result<()> {
+    Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_FWR_RollBackToPermanentValues(
             dev_idx, // iDevIdx,
         )
-    }
+    })
 }
-pub fn FWR_StoreAsPermanentValues(dev_idx: u32) -> Result<()> {
-    unsafe {
+pub fn FWR_StoreAsPermanentValues(dev_idx: i32) -> Result<()> {
+    Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_FWR_StoreAsPermanentValues(
             dev_idx, // iDevIdx,
         )
-    }
+    })
 }
-pub fn FWR_GetModuleMap(dev_idx: u32, perform_restart: bool) -> Result<i32> {
+pub fn FWR_GetModuleMap(dev_idx: i32, perform_restart: bool) -> Result<i32> {
+    let mut piModuleCount: i32 = 0;
 
-    let mut piModuleCount: ::std::os::raw::c_int;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_FWR_GetModuleMap(
-            dev_idx, // iDevIdx,
-            perform_restart, // iPerformRestart,
-            piModuleCount.as_mut_ptr(),
+            dev_idx,                // iDevIdx,
+            perform_restart as i32, // iPerformRestart,
+            &mut piModuleCount,
         )
     }) {
-        Ok(_) => {
-            Ok(piModuleCount)
-        },
+        Ok(_) => Ok(piModuleCount),
         Err(e) => Err(e),
     }
 }
 
+#[derive(Debug)]
 struct ModuleInfo {
     slot_id: i32,
     is_primary: bool,
     is_back_plane: bool,
     has_UTC: bool,
 }
-pub fn FWR_GetModuleInfoByMapIdx(dev_idx: u32, map_idx: i32) -> Result<ModuleInfo> {
+pub fn FWR_GetModuleInfoByMapIdx(dev_idx: i32, map_idx: i32) -> Result<ModuleInfo> {
+    let mut piSlotId: i32 = 0;
+    let mut pbIsPrimary: u8 = 0;
+    let mut pbIsBackPlane: u8 = 0;
+    let mut pbHasUptimeCounter: u8 = 0;
 
-    let mut piSlotId: ::std::os::raw::c_int;
-    let mut pbIsPrimary: ::std::os::raw::c_uchar;
-    let mut pbIsBackPlane: ::std::os::raw::c_uchar;
-    let mut pbHasUptimeCounter: ::std::os::raw::c_uchar;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_FWR_GetModuleInfoByMapIdx(
             dev_idx, // iDevIdx,
             map_idx, // iMapIdx,
-            piSlotId.as_mut_ptr(),
-            pbIsPrimary.as_mut_ptr(),
-            pbIsBackPlane.as_mut_ptr(),
-            pbHasUptimeCounter.as_mut_ptr(),
+            &mut piSlotId,
+            &mut pbIsPrimary,
+            &mut pbIsBackPlane,
+            &mut pbHasUptimeCounter,
         )
     }) {
-        Ok(_) => {
-            Ok( ModuleInfo {
-                slot_id: piSlotId,
-                is_primary: pbIsPrimary,
-                is_back_plane: pbIsBackPlane,
-                has_UTC: pbHasUptimeCounter,
-            })
-        },
+        Ok(_) => Ok(ModuleInfo {
+            slot_id: piSlotId,
+            is_primary: pbIsPrimary != 0,
+            is_back_plane: pbIsBackPlane != 0,
+            has_UTC: pbHasUptimeCounter != 0,
+        }),
         Err(e) => Err(e),
     }
 }
 
+#[derive(Debug)]
 struct UptimeInfo {
     main_pwr_up: u32,
     active_pwr_up: u32,
     scaled_pwr_up: u32,
 }
-pub fn FWR_GetUptimeInfoByMapIdx(dev_idx: u32, map_idx: i32) -> Result<UptimeInfo> {
+pub fn FWR_GetUptimeInfoByMapIdx(dev_idx: i32, map_idx: i32) -> Result<UptimeInfo> {
+    let mut pulMainPowerUp: u32 = 0;
+    let mut pulActivePowerUp: u32 = 0;
+    let mut pulScaledPowerUp: u32 = 0;
 
-    let mut pulMainPowerUp: ::std::os::raw::c_ulong;
-    let mut pulActivePowerUp: ::std::os::raw::c_ulong;
-    let mut pulScaledPowerUp: ::std::os::raw::c_ulong;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_FWR_GetUptimeInfoByMapIdx(
             dev_idx, // iDevIdx,
             map_idx, // iMapIdx,
-            pulMainPowerUp.as_mut_ptr(),
-            pulActivePowerUp.as_mut_ptr(),
-            pulScaledPowerUp.as_mut_ptr(),
+            &mut pulMainPowerUp,
+            &mut pulActivePowerUp,
+            &mut pulScaledPowerUp,
         )
     }) {
-        Ok(_) => {
-            Ok( UptimeInfo {
-                main_pwr_up: pulMainPowerUp,
-                active_pwr_up: pulActivePowerUp,
-                scaled_pwr_up: pulScaledPowerUp,
-            })
-        },
+        Ok(_) => Ok(UptimeInfo {
+            main_pwr_up: pulMainPowerUp,
+            active_pwr_up: pulActivePowerUp,
+            scaled_pwr_up: pulScaledPowerUp,
+        }),
         Err(e) => Err(e),
     }
 }
 
+#[derive(Debug)]
 struct FwrRequestSupport {
     preamble: String,
     calling_sw: String,
-    options: u32,
+    options: i32,
     buffer: i32,
 }
 pub fn FWR_CreateSupportRequestText(dev_idx: i32, fwr_req: FwrRequestSupport) -> Result<String> {
+    let mut cBuffer: [c_char; 64] = [0; 64];
 
-    let mut cPreamble: ::std::os::raw::c_char;
-    let mut cCallingSW: ::std::os::raw::c_char;
-    let mut iOptions:::std::os::raw::c_int;
-    let mut iBufferLen:::std::os::raw::c_int;
-    let mut cBuffer: ::std::os::raw::c_char;
+    let preamble = CString::new(fwr_req.preamble).expect("preamble contains null bytes");
+    let calling_sw = CString::new(fwr_req.calling_sw).expect("preamble contains null bytes");
 
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_FWR_CreateSupportRequestText(
             dev_idx, // iDevIdx,
-            fwr_req.preamble.as_ptr(), // cPreamble,
-            fwr_req.preamble.as_ptr(), // cCallingSW,
-            fwr_req.preamble.as_ptr(), // iOptions,
-            fwr_req.preamble.as_ptr(), // iBufferLen,
+            preamble.into_raw(),   // cPreamble,
+            calling_sw.into_raw(), // cCallingSW,
+            fwr_req.options,             // iOptions,
+            fwr_req.buffer,              // iBufferLen,
             cBuffer.as_mut_ptr(),
         )
     }) {
-        Ok(_) => {
-            Ok(cBuffer)
-        },
+        Ok(_) => Ok(to_string(cBuffer.as_ptr())),
         Err(e) => Err(e),
     }
 }
@@ -378,154 +361,153 @@ pub fn FWR_CreateSupportRequestText(dev_idx: i32, fwr_req: FwrRequestSupport) ->
 // NOTE: Call this at the end of program or end of use of the laser to dealloc memory for the
 // ModuleMap
 pub fn FWR_FreeModuleMap(dev_idx: i32) -> Result<()> {
-    unsafe {
-        SEPIA2.SEPIA2_FWR_FreeModuleMap(dev_idx)
-    }
+    Sepia2Error::from_raw(unsafe { SEPIA2.SEPIA2_FWR_FreeModuleMap(dev_idx) })
 }
 
-struct PrimaDevInfo{
+#[derive(Debug)]
+struct PrimaDevInfo {
     device_id: String,
     device_type: String,
     fw_version: String,
     wl_count: i32,
 }
 pub fn PRI_GetDeviceInfo(dev_idx: i32, slot_id: i32) -> Result<PrimaDevInfo> {
+    let mut pcDeviceID: [c_char; 64] = [0; 64];
+    let mut pcDeviceType: [c_char; 64] = [0; 64];
+    let mut pcFW_Version: [c_char; 64] = [0; 64];
+    let mut piWL_Count: i32 = 0;
 
-    let mut pcDeviceID: ::std::os::raw::c_char;
-    let mut pcDeviceType: ::std::os::raw::c_char;
-    let mut pcFW_Version: ::std::os::raw::c_char;
-    let mut piWL_Count: ::std::os::raw::c_int;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_GetDeviceInfo(
             dev_idx, // iDevIdx,
             slot_id, // iSlotId,
             pcDeviceID.as_mut_ptr(),
             pcDeviceType.as_mut_ptr(),
             pcFW_Version.as_mut_ptr(),
-            piWL_Count.as_mut_ptr(),
+            &mut piWL_Count,
         )
     }) {
-        Ok(_) => {
-            Ok( PrimaDevInfo {
-                device_id: to_string(pcDeviceID),
-                device_type: to_string(pcDeviceType),
-                fw_version: to_string(pcFW_Version),
-                wl_count: piWL_Count,
-            })
-        },
+        Ok(_) => Ok(PrimaDevInfo {
+            device_id: to_string(pcDeviceID.as_ptr()),
+            device_type: to_string(pcDeviceType.as_ptr()),
+            fw_version: to_string(pcFW_Version.as_ptr()),
+            wl_count: piWL_Count,
+        }),
         Err(e) => Err(e),
     }
 }
+
+#[derive(Debug)]
 struct PrimaModeInfo {
     oper_mode_idx: i32,
     oper_mode: String,
 }
-pub fn PRI_DecodeOperationMode(dev_idx: i32, slot_id: i32, oper_mode_idx: i32) -> Result<PrimaModeInfo> {
+pub fn PRI_DecodeOperationMode(
+    dev_idx: i32,
+    slot_id: i32,
+    oper_mode_idx: i32,
+) -> Result<PrimaModeInfo> {
+    let mut pcOperMode: [c_char; 64] = [0; 64];
 
-    let mut pcOperMode: ::std::os::raw::c_char;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_DecodeOperationMode(
-            dev_idx, // iDevIdx,
-            slot_id, // iSlotId,
+            dev_idx,       // iDevIdx,
+            slot_id,       // iSlotId,
             oper_mode_idx, // iOperModeIdx,
-            pcOperMode.as_mut_ptr,
+            pcOperMode.as_mut_ptr(),
         )
     }) {
-        Ok(_) => {
-            Ok(PrimaModeInfo { oper_mode_idx, oper_mode: pcOperMode })
-        },
+        Ok(_) => Ok(PrimaModeInfo {
+            oper_mode_idx,
+            oper_mode: to_string(pcOperMode.as_ptr()),
+        }),
         Err(e) => Err(e),
     }
 }
 pub fn PRI_GetOperationMode(dev_idx: i32, slot_id: i32) -> Result<i32> {
+    let mut piOperModeIdx: i32 = 0;
 
-    let mut piOperModeIdx: ::std::os::raw::c_int;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_GetOperationMode(
             dev_idx, // iDevIdx,
             slot_id, // iSlotId,
-            piOperModeIdx.as_mut_ptr(),
+            &mut piOperModeIdx,
         )
     }) {
-        Ok(_) => {
-            Ok(piOperModeIdx)
-        },
+        Ok(_) => Ok(piOperModeIdx),
         Err(e) => Err(e),
     }
 }
 pub fn PRI_SetOperationMode(dev_idx: i32, slot_id: i32, oper_mode_idx: i32) -> Result<()> {
-    unsafe {
+    Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_SetOperationMode(
-            dev_idx, // iDevIdx,
-            slot_id, // iSlotId,
+            dev_idx,       // iDevIdx,
+            slot_id,       // iSlotId,
             oper_mode_idx, // iOperModeIdx,
         )
-    }
+    })
 }
 
+#[derive(Debug)]
 struct TriggerInfo {
     trg_src_idx: i32,
     trg_src: String,
     frequency_enabled: bool,
     trig_level_enabled: bool,
 }
-pub fn PRI_DecodeTriggerSource(dev_idx: i32, slot_id: i32, trg_src_idx: i32) -> Result<TriggerInfo> {
+pub fn PRI_DecodeTriggerSource(
+    dev_idx: i32,
+    slot_id: i32,
+    trg_src_idx: i32,
+) -> Result<TriggerInfo> {
+    let mut pcTrgSrc: [c_char; 64] = [0; 64];
+    let mut pbFrequencyEnabled: u8 = 0;
+    let mut pbTrigLevelEnabled: u8 = 0;
 
-    let mut pcTrgSrc: ::std::os::raw::c_char;
-    let mut pbFrequencyEnabled: ::std::os::raw::c_uchar;
-    let mut pbTrigLevelEnabled: ::std::os::raw::c_uchar;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_DecodeTriggerSource(
-            dev_idx, // iDevIdx,
-            slot_id, // iSlotId,
+            dev_idx,     // iDevIdx,
+            slot_id,     // iSlotId,
             trg_src_idx, // iTrgSrcIdx,
             pcTrgSrc.as_mut_ptr(),
-            pbFrequencyEnabled.as_mut_ptr(),
-            pbTrigLevelEnabled.as_mut_ptr(),
+            &mut pbFrequencyEnabled,
+            &mut pbTrigLevelEnabled,
         )
     }) {
-        Ok(_) => {
-            Ok( TriggerInfo {
-                trg_src_idx,
-                trg_src: to_string(pcTrgSrc),
-                frequency_enabled: pbFrequencyEnabled != 0,
-                trig_level_enabled: pbTrigLevelEnabled != 0,
-            })
-        },
+        Ok(_) => Ok(TriggerInfo {
+            trg_src_idx,
+            trg_src: to_string(pcTrgSrc.as_ptr()),
+            frequency_enabled: pbFrequencyEnabled != 0,
+            trig_level_enabled: pbTrigLevelEnabled != 0,
+        }),
         Err(e) => Err(e),
     }
 }
 pub fn PRI_GetTriggerSource(dev_idx: i32, slot_id: i32) -> Result<i32> {
+    let mut piTrgSrcIdx: i32 = 0;
 
-    let mut piTrgSrcIdx: ::std::os::raw::c_int;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_GetTriggerSource(
             dev_idx, // iDevIdx,
             slot_id, // iSlotId,
-            piTrgSrcIdx.as_mut_ptr(),
+            &mut piTrgSrcIdx,
         )
     }) {
-        Ok(_) => {
-            Ok(piTrgSrcIdx)
-        },
+        Ok(_) => Ok(piTrgSrcIdx),
         Err(e) => Err(e),
     }
 }
-pub fn PRI_SetTriggerSource(dev_idx: i32, slot_id: i32, trig_src_idx: i32) -> Result<()> {
-    unsafe {
+pub fn PRI_SetTriggerSource(dev_idx: i32, slot_id: i32, trg_src_idx: i32) -> Result<()> {
+    Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_SetTriggerSource(
-            dev_idx, // iDevIdx,
-            slot_id, // iSlotId,
+            dev_idx,     // iDevIdx,
+            slot_id,     // iSlotId,
             trg_src_idx, // iTrgSrcIdx,
         )
-    }
+    })
 }
 
+#[derive(Debug)]
 struct TriggerLevelInfo {
     trg_min_lvl: i32,
     trg_max_lvl: i32,
@@ -533,188 +515,173 @@ struct TriggerLevelInfo {
 }
 
 pub fn PRI_GetTriggerLevelLimits(dev_idx: i32, slot_id: i32) -> Result<TriggerLevelInfo> {
+    let mut piTrg_MinLvl: i32 = 0;
+    let mut piTrg_MaxLvl: i32 = 0;
+    let mut piTrg_LvlRes: i32 = 0;
 
-    let mut piTrg_MinLvl: ::std::os::raw::c_int;
-    let mut piTrg_MaxLvl: ::std::os::raw::c_int;
-    let mut piTrg_LvlRes: ::std::os::raw::c_int;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_GetTriggerLevelLimits(
             dev_idx, // iDevIdx,
             slot_id, // iSlotId,
-            piTrg_MinLvl.as_mut_ptr(),
-            piTrg_MaxLvl.as_mut_ptr(),
-            piTrg_LvlRes.as_mut_ptr(),
+            &mut piTrg_MinLvl,
+            &mut piTrg_MaxLvl,
+            &mut piTrg_LvlRes,
         )
     }) {
-        Ok(_) => {
-            Ok( TriggerLevelInfo{
-                    trg_min_lvl: piTrg_MinLvl,
-                    trg_max_lvl: piTrg_MaxLvl,
-                    trg_lvl_res: piTrg_LvlRes,
-            })
-        },
+        Ok(_) => Ok(TriggerLevelInfo {
+            trg_min_lvl: piTrg_MinLvl,
+            trg_max_lvl: piTrg_MaxLvl,
+            trg_lvl_res: piTrg_LvlRes,
+        }),
         Err(e) => Err(e),
     }
 }
 pub fn PRI_GetTriggerLevel(dev_idx: i32, slot_id: i32) -> Result<i32> {
+    let mut piTrgLevel: i32 = 0;
 
-    let mut piTrgLevel: ::std::os::raw::c_int;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_GetTriggerLevel(
             dev_idx, // iDevIdx,
             slot_id, // iSlotId,
-            piTrgLevel.as_mut_ptr(),
+            &mut piTrgLevel,
         )
     }) {
-        Ok(_) => {
-            Ok(piTrgLevel)
-        },
+        Ok(_) => Ok(piTrgLevel),
         Err(e) => Err(e),
     }
 }
 pub fn PRI_SetTriggerLevel(dev_idx: i32, slot_id: i32, trg_level: i32) -> Result<()> {
-    unsafe {
+    Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_SetTriggerLevel(
-            dev_idx, // iDevIdx,
-            slot_id, // iSlotId,
+            dev_idx,   // iDevIdx,
+            slot_id,   // iSlotId,
             trg_level, // iTrgLevel,
         )
-    }
+    })
 }
 pub fn PRI_GetFrequencyLimits(dev_idx: i32, slot_id: i32) -> Result<(i32, i32)> {
+    let mut piMinFreq: i32 = 0;
+    let mut piMaxFreq: i32 = 0;
 
-    let mut piMinFreq: ::std::os::raw::c_int;
-    let mut piMaxFreq: ::std::os::raw::c_int;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_GetFrequencyLimits(
             dev_idx, // iDevIdx,
             slot_id, // iSlotId,
-            piMinFreq.as_mut_ptr(),
-            piMaxFreq.as_mut_ptr(),
+            &mut piMinFreq,
+            &mut piMaxFreq,
         )
     }) {
-        Ok(_) => {
-            Ok((piMinFreq, piMaxFreq))
-        },
+        Ok(_) => Ok((piMinFreq, piMaxFreq)),
         Err(e) => Err(e),
     }
 }
 pub fn PRI_GetFrequency(dev_idx: i32, slot_id: i32) -> Result<i32> {
+    let mut piFrequency: i32 = 0;
 
-    let mut piFrequency: ::std::os::raw::c_int;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_GetFrequency(
             dev_idx, // iDevIdx,
             slot_id, // iSlotId,
-            piFrequency.as_mut_ptr(),
+            &mut piFrequency,
         )
     }) {
-        Ok(_) => {
-            Ok(piFrequency)
-        },
+        Ok(_) => Ok(piFrequency),
         Err(e) => Err(e),
     }
 }
 pub fn PRI_SetFrequency(dev_idx: i32, slot_id: i32, frequency: i32) -> Result<()> {
-    unsafe {
+    Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_SetFrequency(
-            dev_idx, // iDevIdx,
-            slot_id, // iSlotId,
+            dev_idx,   // iDevIdx,
+            slot_id,   // iSlotId,
             frequency, // iFrequency,
         )
-    }
+    })
 }
 
+#[derive(Debug)]
 struct PrimaGatingInfo {
     min_on_time: i32,
     max_on_time: i32,
     min_off_time_factor: i32,
     max_off_time_factor: i32,
 }
-pub fn PRI_GetGatingLimits(dev_idx: i32, slot_id: i32) -> Result<PrimaGationInfo> {
+pub fn PRI_GetGatingLimits(dev_idx: i32, slot_id: i32) -> Result<PrimaGatingInfo> {
+    let mut piMinOnTime: i32 = 0;
+    let mut piMaxOnTime: i32 = 0;
+    let mut pbMinOffTimefactor: i32 = 0;
+    let mut pbMaxOffTimefactor: i32 = 0;
 
-    let mut piMinOnTime: ::std::os::raw::c_int;
-    let mut piMaxOnTime: ::std::os::raw::c_int;
-    let mut pbMinOffTimefactor: ::std::os::raw::c_int;
-    let mut pbMaxOffTimefactor: ::std::os::raw::c_int;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_GetGatingLimits(
             dev_idx, // iDevIdx,
             slot_id, // iSlotId,
-            piMinOnTime.as_mut_ptr(),
-            piMaxOnTime.as_mut_ptr(),
-            pbMinOffTimefactor.as_mut_ptr(),
-            pbMaxOffTimefactor.as_mut_ptr(),
+            &mut piMinOnTime,
+            &mut piMaxOnTime,
+            &mut pbMinOffTimefactor,
+            &mut pbMaxOffTimefactor,
         )
     }) {
-        Ok(_) => {
-            Ok( PrimaGatingInfo {
-                min_on_time: piMinOnTime,
-                max_on_time: piMaxOnTime,
-                min_off_time_factor: pbMinOffTimefactor,
-                max_off_time_factor: pbMaxOffTimefactor,
-            })
-        },
+        Ok(_) => Ok(PrimaGatingInfo {
+            min_on_time: piMinOnTime,
+            max_on_time: piMaxOnTime,
+            min_off_time_factor: pbMinOffTimefactor,
+            max_off_time_factor: pbMaxOffTimefactor,
+        }),
         Err(e) => Err(e),
     }
 }
 pub fn PRI_GetGatingData(dev_idx: i32, slot_id: i32) -> Result<(i32, i32)> {
+    let mut piOnTime: i32 = 0;
+    let mut piOffTimeFact: i32 = 0;
 
-    let mut piOnTime: ::std::os::raw::c_int;
-    let mut piOffTimeFact: ::std::os::raw::c_int;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_GetGatingData(
             dev_idx, // iDevIdx,
             slot_id, // iSlotId,
-            piOnTime.as_mut_ptr(),
-            piOffTimeFact.as_mut_ptr(),
+            &mut piOnTime,
+            &mut piOffTimeFact,
         )
     }) {
-        Ok(_) => {
-            Ok((piOnTime, piOffTimeFact))
-        },
+        Ok(_) => Ok((piOnTime, piOffTimeFact)),
         Err(e) => Err(e),
     }
 }
-pub fn PRI_SetGatingData(dev_idx: i32, slot_id: i32, on_time: i32, off_time_factor: i32) -> Result<()> {
-    unsafe {
+pub fn PRI_SetGatingData(
+    dev_idx: i32,
+    slot_id: i32,
+    on_time: i32,
+    off_time_factor: i32,
+) -> Result<()> {
+    Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_SetGatingData(
-            dev_idx, // iDevIdx,
-            slot_id, // iSlotId,
-            on_time, // iOnTime,
+            dev_idx,         // iDevIdx,
+            slot_id,         // iSlotId,
+            on_time,         // iOnTime,
             off_time_factor, // iOffTimeFact,
         )
-    }
+    })
 }
 pub fn PRI_GetGatingEnabled(dev_idx: i32, slot_id: i32) -> Result<bool> {
+    let mut pbGatingEnabled: u8 = 0;
 
-    let mut pbGatingEnabled: ::std::os::raw::c_uchar;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_GetGatingEnabled(
             dev_idx, // iDevIdx,
             slot_id, // iSlotId,
-            pbGatingEnabled.as_mut_ptr(),
+            &mut pbGatingEnabled,
         )
     }) {
-        Ok(_) => {
-            Ok(pbGatingEnabled != 0)
-        },
+        Ok(_) => Ok(pbGatingEnabled != 0),
         Err(e) => Err(e),
     }
 }
 pub fn PRI_SetGatingEnabled(dev_idx: i32, slot_id: i32, gating_enabled: bool) -> Result<()> {
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_SetGatingEnabled(
-            dev_idx, // iDevIdx,
-            slot_id, // iSlotId,
-            gating_enabled, // bGatingEnabled,
+            dev_idx,              // iDevIdx,
+            slot_id,              // iSlotId,
+            gating_enabled as u8, // bGatingEnabled,
         )
     }) {
         Ok(_) => Ok(()),
@@ -722,110 +689,198 @@ pub fn PRI_SetGatingEnabled(dev_idx: i32, slot_id: i32, gating_enabled: bool) ->
     }
 }
 pub fn PRI_GetGateHighImpedance(dev_idx: i32, slot_id: i32) -> Result<bool> {
+    let mut pbHighImpedance: u8 = 0;
 
-    let mut pbHighImpedance: u8;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_GetGateHighImpedance(
             dev_idx, // iDevIdx,
             slot_id, // iSlotId,
-            pbHighImpedance.as_mut_ptr(),
+            &mut pbHighImpedance,
         )
     }) {
-        Ok(_) => {
-            Ok(pbHighImpedance != 0)
-        },
+        Ok(_) => Ok(pbHighImpedance != 0),
         Err(e) => Err(e),
     }
 }
 pub fn PRI_SetGateHighImpedance(dev_idx: i32, slot_id: i32, high_impedance: bool) -> Result<()> {
-    unsafe {
+    Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_SetGateHighImpedance(
-            dev_idx, // iDevIdx,
-            slot_id, // iSlotId,
-            high_impedance, // bHighImpedance,
+            dev_idx,              // iDevIdx,
+            slot_id,              // iSlotId,
+            high_impedance as u8, // bHighImpedance,
         )
-    }
+    })
 }
 pub fn PRI_DecodeWavelength(dev_idx: i32, slot_id: i32, wl_idx: i32) -> Result<i32> {
+    let mut piWL: i32 = 0;
 
-    let mut piWL: ::std::os::raw::c_int;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_DecodeWavelength(
             dev_idx, // iDevIdx,
             slot_id, // iSlotId,
-            wl_idx, // iWLIdx,
-            piWL.as_mut_ptr(),
+            wl_idx,  // iWLIdx,
+            &mut piWL,
         )
     }) {
-        Ok(_) => {
-            Ok(piWL)
-        },
+        Ok(_) => Ok(piWL),
         Err(e) => Err(e),
     }
 }
 pub fn PRI_GetWavelengthIdx(dev_idx: i32, slot_id: i32) -> Result<i32> {
+    let mut piWLIdx: i32 = 0;
 
-    let mut piWLIdx: ::std::os::raw::c_int;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_GetWavelengthIdx(
             dev_idx, // iDevIdx,
             slot_id, // iSlotId,
-            piWLIdx.as_mut_ptr(),
+            &mut piWLIdx,
         )
     }) {
-        Ok(_) => {
-            Ok(piWLIdx)
-        },
+        Ok(_) => Ok(piWLIdx),
         Err(e) => Err(e),
     }
 }
 pub fn PRI_SetWavelengthIdx(dev_idx: i32, slot_id: i32, wl_idx: i32) -> Result<()> {
-   unsafe {
+    Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_SetWavelengthIdx(
             dev_idx, // iDevIdx,
             slot_id, // iSlotId,
-            wl_idx, // iWLIdx,
+            wl_idx,  // iWLIdx,
         )
-    }
+    })
 }
 pub fn PRI_GetIntensity(dev_idx: i32, slot_id: i32, wl_idx: i32) -> Result<u16> {
+    let mut pwIntensity: u16 = 0;
 
-    let mut pwIntensity: ::std::os::raw::c_ushort;
-
-    match Sepia2Error::from_raw( unsafe {
+    match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_GetIntensity(
             dev_idx, // iDevIdx,
             slot_id, // iSlotId,
-            wl_idx, // iWLIdx,
-            pwIntensity.as_mut_ptr(),
+            wl_idx,  // iWLIdx,
+            &mut pwIntensity,
         )
     }) {
-        Ok(_) => {
-            Ok(pwIntensity)
-        },
+        Ok(_) => Ok(pwIntensity),
         Err(e) => Err(e),
     }
 }
 pub fn PRI_SetIntensity(dev_idx: i32, slot_id: i32, wl_idx: i32, w_intensity: u16) -> Result<()> {
-    unsafe {
+    Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_SetIntensity(
-            dev_idx, // iDevIdx,
-            slot_id, // iSlotId,
-            wl_idx, // iWLIdx,
+            dev_idx,     // iDevIdx,
+            slot_id,     // iSlotId,
+            wl_idx,      // iWLIdx,
             w_intensity, // wIntensity,
         )
-    }
+    })
 }
+
+// -----------------------------------------------------------------------------
+// Test functions
+// -----------------------------------------------------------------------------
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use test_log::test;
+    use log::{error, info, warn, trace};
+    use test_log;
 
     #[test]
-    fn test_default_settings() {
+    fn test_decode_error() {
+        let err_str = match LIB_DecodeError(-1001) {
+            Ok(result) => result,
+            Err(e) => panic!("Error: {:?}", e),
+        };
+        assert_eq!(err_str, "FW: memory allocation error");
+    }
+
+    #[test]
+    fn test_lib_version() {
+        let version = match LIB_GetVersion() {
+            Ok(result) => result,
+            Err(e) => panic!("Error: {:?}", e),
+        };
+        info!("Sepia2_Lib Version: {}", version);
+        // NOTE: Not expecting any updates
+        assert!(version.contains("1.2.32") || version.contains("1.2.64"));
+    }
+
+    #[test]
+    fn test_usb_version() {
+        let usb_version = match LIB_GetLibUSBVersion() {
+            Ok(result) => result,
+            Err(e) => panic!("Error: {:?}", e),
+        };
+        info!("LibUSB Version: {}", usb_version);
+    }
+
+    #[test]
+    fn test_wine() {
+        let wine_bool = match LIB_IsRunningOnWine() {
+            Ok(result) => result,
+            Err(e) => panic!("Error: {:?}", e),
+        };
+        match wine_bool {
+            true => info!("Running on Wine"),
+            false => info!("Not running on Wine"),
+        }
+    }
+
+    #[test]
+    fn test_open_and_query_usb() {
+        for _ in 0..10 {
+            if USB_IsOpenDevice(0).expect("Couldn't querry state of USB device") {
+                break;
+            }
+            trace!("Wait for USB(0) to be accessible");
+            std::thread::sleep(std::time::Duration::from_millis(500));
+        }
+        let usb_device = match USB_OpenDevice(0) {
+            Ok(result) => Some(result),
+            Err(e) => {
+                warn!("Couldn't open USB(0): {:?}", e);
+                None
+            }
+        };
+        if let Some(usb_device) = usb_device {
+            let fwr_version = FWR_GetVersion(0);
+            let usb_descriptor = USB_GetStrDescriptor(0);
+            info!("USB index = {}", 0);
+            info!("USB descriptor = {:?}", usb_descriptor);
+            info!("FW-Version: {:?}", fwr_version);
+            info!("USB device: {:?}", usb_device);
+
+            let mut module_cnt = 0;
+            match FWR_GetModuleMap(0, false) {
+                Ok(cnt) => {
+                    module_cnt = cnt;
+                    info!("ModuleMap has been created")
+                },
+                Err(e) => error!("Couldn't create ModuleMap: {:?}", e),
+            };
+
+            for map_idx in 0..module_cnt {
+                let module_info = FWR_GetModuleInfoByMapIdx(0, map_idx);
+                info!("ModuleInfo: {:?}", module_info);
+                if let Err(_) = module_info {
+                    continue;
+                }
+            }
+
+            // NOTE: Need to decode the module info to indentify PRI slot_id
+            match PRI_GetFrequencyLimits(0, 100) {
+                Ok(result) => info!("Frequency limits: {:?}", result),
+                Err(e) => error!("Couldn't get frequency limits: {:?}", e),
+            };
+
+            info!("Freeing ModuleMap {:?}", FWR_FreeModuleMap(0));
+
+            match USB_CloseDevice(0) {
+                Ok(_) => info!("USB(0) device: {:?} has been closed successfuly", usb_device),
+                Err(e) => {
+                    panic!("Couldn't close device: {}", e);
+                }
+            }
+        }
     }
 }

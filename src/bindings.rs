@@ -173,3 +173,12 @@ mod test {
         }
     }
 }
+
+// Convert Rust string to C-style string
+macro_rules! const_ptr_c_char {
+    ($value:expr) => {
+        format!("{}{}", $value, "\0").as_ptr().cast::<c_char>()
+    };
+}
+
+pub(crate) use const_ptr_c_char;
