@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
 // Crate imports
-use crate::bindings::api::*;
+use sepia2_sys::api::*;
 use crate::error::Sepia2Error;
 
 // C types imports as casting helpers
