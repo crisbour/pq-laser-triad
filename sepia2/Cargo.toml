@@ -10,7 +10,8 @@ fmt = "0.1.0"
 log = "0.4.25"
 tempfile = "3.16.0"
 test-log = "0.2.17"
+prost = "0.13.4"
 sepia2-sys = { path = "../sepia2-sys" }
 
 [build-dependencies]
-prost = "0.13.4"
+prost-build = "0.5"

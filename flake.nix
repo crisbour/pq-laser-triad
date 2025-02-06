@@ -61,6 +61,7 @@
           packages = with pkgs; [
             #       (mingw_w64_cc pkgs)
             rustToolchain
+            grpc-tools
             openssl
             pkg-config
             cargo-deny
