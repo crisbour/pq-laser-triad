@@ -20,6 +20,8 @@ this is `dylib` 🤷
 ## Existing bindings
 
 - [PQLaserDrv](https://github.com/PicoQuant/PQLaserDrv/tree/master)
+    - [Python calling
+    sequence](https://github.com/PicoQuant/PQLaserDrv/blob/master/Demos/Python3/SetSomeDataByPython.py)
 
 ## Linking
 
@@ -62,5 +64,8 @@ alternative specifically build for cross compilig Rust projects
 ## Investigation resources
 
 - [Cross-platform bindgen example for CoolProp](https://github.com/portyanikhin/rfluids)
+- [Comprehensive Rust](https://google.github.io/comprehensive-rust) - Call C
+with Bindgen
+- [Rustonomicon - FFI](https://doc.rust-lang.org/nomicon/ffi.html)
 - [bindgen-having-trouble-with-global-variable-in-dll](https://users.rust-lang.org/t/bindgen-having-trouble-with-global-variable-in-dll/55530/6)
 - [wintun generate and link dll](https://github.com/hackclub/burrow/blob/85640ffce18eac6ac1b6fa85ff278a457c955198/tun/build.rs)
