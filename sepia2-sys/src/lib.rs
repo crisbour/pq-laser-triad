@@ -1,15 +1,17 @@
 pub mod api;
-pub mod error_def;
+pub mod errors;
 pub mod types;
 pub mod constants;
 
 // Convert Rust string to C-style string
+#[allow(unused_macros)]
 macro_rules! const_ptr_c_char {
     ($value:expr) => {
         format!("{}{}", $value, "\0").as_ptr().cast::<c_char>()
     };
 }
 
+#[allow(unused_imports)]
 pub(crate) use const_ptr_c_char;
 
 #[cfg(test)]
@@ -18,6 +20,7 @@ mod test {
     use super::api::*;
     use super::errors::*;
     use super::types::*;
+    use super::constants::*;
     use super::*;
     use test_log::test;
     use log::{info,warn};
