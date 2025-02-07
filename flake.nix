@@ -61,7 +61,8 @@
           packages = with pkgs; [
             #       (mingw_w64_cc pkgs)
             rustToolchain
-            grpc-tools
+            grpc-tools # protoc
+            protobuf # required for google import *.proto
             openssl
             pkg-config
             cargo-deny

@@ -6,3 +6,12 @@
 - [ ] Define service call routines based on `.proto` definition
 - [ ] Implement logging channel that client can subscribe to
 - [ ] Implement error types for response messages
+
+
+## Resources
+
+- [gRPC Status Codes](https://grpc.io/docs/guides/status-codes/) remote error handling 
+- [build gRPC APIs with
+Rust](https://konghq.com/blog/engineering/building-grpc-apis-with-rust)
+    - [Insomnia testing gRPC](https://insomnia.rest/)
+

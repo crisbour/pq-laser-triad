@@ -2,6 +2,10 @@ syntax = "proto3";
 
 package sepia2.rpc;
 
+// FIXME: Resolve google imports
+//import "google/protobuf/empty.proto";
+//import "google/protobuf/any.proto";
+
 // Request messages for functions requiring multiple parameters
 message PrimaGatingInfo {
     int32 min_on_time = 1;
@@ -62,19 +66,23 @@ message USBDevice {
 // Common return types
 message Empty {}
 
-message StringResult {
+message String {
   string value = 1;
 }
 
-message BoolResult {
+message Bool {
   bool value = 1;
 }
 
-message Int32Result {
+message Int32 {
   int32 value = 1;
 }
 
-message LibDecodeErrorRequest {
+message Uint32 {
+  uint32 value = 1;
+}
+
+message DeviceIdx {
   int32 dev_idx = 1;
 }
 
@@ -82,61 +90,166 @@ message LibDecodeErrorResponse {
   string err_str = 1;
 }
 
-service Sepia2Service {
-  rpc LIB_DecodeError(LibDecodeErrorRequest) returns (LibDecodeErrorResponse);
-  //rpc LIB_GetVersion() returns String
-  //rpc LIB_GetLibUSBVersion() returns String
-  //rpc LIB_IsRunningOnWine() returns bool
-  //rpc USB_OpenDevice(dev_idx: i32) returns USBDevice
-  //rpc USB_OpenGetSerNumAndClose(dev_idx: i32) returns USBDevice
-  //rpc USB_GetStrDescriptor(dev_idx: i32) returns String
-  //rpc USB_GetStrDescrByIdx(dev_idx: i32, descr_idx: i32) returns String
-  //rpc USB_IsOpenDevice(dev_idx: i32) returns bool
-  //rpc USB_CloseDevice(dev_idx: i32) -> Result<()>
-  //rpc FWR_DecodeErrPhaseName(err_phase: i32) returns String
-  //rpc FWR_GetVersion(dev_idx: i32) returns String
-  //rpc FWR_GetLastError(dev_idx: i32) returns FwError
-  //rpc FWR_GetWorkingMode(dev_idx: i32) returns i32
-  //rpc FWR_SetWorkingMode(dev_idx: i32, mode: i32) -> Result<()>
-  //rpc FWR_RollBackToPermanentValues(dev_idx: i32) -> Result<()>
-  //rpc FWR_StoreAsPermanentValues(dev_idx: i32) -> Result<()>
-  //rpc FWR_GetModuleMap(dev_idx: i32, perform_restart: bool) returns i32
-  //rpc FWR_GetModuleInfoByMapIdx(dev_idx: i32, map_idx: i32) returns ModuleInfo
-  //rpc FWR_GetUptimeInfoByMapIdx(dev_idx: i32, map_idx: i32) returns UptimeInfo
-  //rpc FWR_CreateSupportRequestText(dev_idx: i32, fwr_req: FwrRequestSupport) returns String
-  //rpc FWR_FreeModuleMap(dev_idx: i32) -> Result<()>
-  //rpc PRI_GetDeviceInfo(dev_idx: i32, slot_id: i32) returns PrimaDevInfo
-  //rpc PRI_DecodeOperationMode( dev_idx: i32, slot_id: i32, oper_mode_idx: i32) returns PrimaModeInfo
-  //rpc PRI_GetOperationMode(dev_idx: i32, slot_id: i32) returns i32
-  //rpc PRI_SetOperationMode(dev_idx: i32, slot_id: i32, oper_mode_idx: i32) -> Result<()>
-  //rpc PRI_DecodeTriggerSource( dev_idx: i32, slot_id: i32, trg_src_idx: i32) returns TriggerInfo
-  //rpc PRI_GetTriggerSource(dev_idx: i32, slot_id: i32) returns i32
-  //rpc PRI_SetTriggerSource(dev_idx: i32, slot_id: i32, trg_src_idx: i32) -> Result<()>
-  //rpc PRI_GetTriggerLevelLimits(dev_idx: i32, slot_id: i32) returns TriggerLevelInfo
-  //rpc PRI_GetTriggerLevel(dev_idx: i32, slot_id: i32) returns i32
-  //rpc PRI_SetTriggerLevel(dev_idx: i32, slot_id: i32, trg_level: i32) -> Result<()>
-  //rpc PRI_GetFrequencyLimits(dev_idx: i32, slot_id: i32) -> Result<(i32, i32)>
-  //rpc PRI_GetFrequency(dev_idx: i32, slot_id: i32) returns i32
-  //rpc PRI_SetFrequency(dev_idx: i32, slot_id: i32, frequency: i32) -> Result<()>
-  //rpc PRI_GetGatingLimits(dev_idx: i32, slot_id: i32) returns PrimaGatingInfo
-  //rpc PRI_GetGatingData(dev_idx: i32, slot_id: i32) -> Result<(i32, i32)>
-  //rpc PRI_SetGatingData( dev_idx: i32, slot_id: i32, on_time: i32, off_time_factor: i32) -> Result<()>
-  //rpc PRI_GetGatingEnabled(dev_idx: i32, slot_id: i32) returns bool
-  //rpc PRI_SetGatingEnabled(dev_idx: i32, slot_id: i32, gating_enabled: bool) -> Result<()>
-  //rpc PRI_GetGateHighImpedance(dev_idx: i32, slot_id: i32) returns bool
-  //rpc PRI_SetGateHighImpedance(dev_idx: i32, slot_id: i32, high_impedance: bool) -> Result<()>
-  //rpc PRI_DecodeWavelength(dev_idx: i32, slot_id: i32, wl_idx: i32) returns i32
-  //rpc PRI_GetWavelengthIdx(dev_idx: i32, slot_id: i32) returns i32
-  //rpc PRI_SetWavelengthIdx(dev_idx: i32, slot_id: i32, wl_idx: i32) -> Result<()>
-  //rpc PRI_GetIntensity(dev_idx: i32, slot_id: i32, wl_idx: i32) returns u16
-  //rpc PRI_SetIntensity(dev_idx: i32, slot_id: i32, wl_idx: i32, w_intensity: u16) -> Result<()>
+message Version {
+  string version = 1;
+};
+
+message GetStrDescrByIdxRequest {
+  int32 dev_idx = 1;
+  int32 descr_idx = 2;
+}
+
+message ErrPhaseRequest {
+  int32 err_phase = 1;
+}
+
+message FwrSetWorkingModeRequest {
+  int32 dev_idx = 1;
+  int32 mode = 2;
+}
+
+message GetModuleMapRequest {
+  int32 dev_idx = 1;
+  bool perform_restart = 2;
+}
+
+message FrequencyLimitsResponse {
+  int32 min_freq = 1;
+  int32 max_freq = 2;
+}
+
+message MapIdxRequest {
+  int32 dev_idx = 1;
+  int32 map_idx = 2;
+}
+
+message PriRequest {
+  int32 dev_idx = 1;
+  int32 slot_id = 2;
 }
 
 
-// --------------------------------------------------------------------------------
-// Error type: Sepia2Error
-// --------------------------------------------------------------------------------
+message SetFrequencyRequest {
+  PriRequest pri_req = 1;
+  int32 frequency = 2;
+}
 
+message GatingEnabledRequst {
+  PriRequest pri_req= 1;
+  bool gating_enabled = 2;
+}
+
+message WavelengthRequest {
+  PriRequest pri_req = 1;
+  int32 wl_idx = 2;
+}
+
+message SetIntensityRequest {
+  WavelengthRequest wl_req = 1;
+  int32 intensity = 2;
+}
+
+message OperationModeRequest {
+  PriRequest pri_req = 1;
+  int32 oper_mode_idx = 2;
+}
+
+message TriggerSourceRequest {
+  PriRequest pri_req = 1;
+  int32 trg_src_idx = 2;
+}
+
+message TriggerLevelRequest {
+  PriRequest pri_req = 1;
+  int32 trg_lvl = 2;
+}
+
+message GatingData {
+  int32 on_time = 1;
+  int32 off_time_factor = 2;
+}
+
+message GatingDataRequest {
+  PriRequest pri_req = 1;
+  GatingData gating_data = 2;
+}
+
+message HighImpeadanceRequest {
+  PriRequest pri_req = 1;
+  bool high_impedance = 2;
+}
+
+message FwrRequestSupportRequest {
+  int32 dev_idx = 1;
+  FwrRequestSupport fwr_req = 2;
+}
+
+service Sepia2Service {
+  rpc LIB_DecodeError               (DeviceIdx               ) returns (LibDecodeErrorResponse );
+  rpc LIB_GetVersion                (Empty   ) returns (Version                );
+  rpc LIB_GetLibUSBVersion          (Empty   ) returns (Version                );
+  rpc LIB_IsRunningOnWine           (Empty   ) returns (Bool                   );
+  rpc USB_OpenDevice                (DeviceIdx               ) returns (USBDevice              );
+  rpc USB_OpenGetSerNumAndClose     (DeviceIdx               ) returns (USBDevice              );
+  rpc USB_GetStrDescriptor          (DeviceIdx               ) returns (String                 );
+  rpc USB_GetStrDescrByIdx          (GetStrDescrByIdxRequest ) returns (String                 );
+  rpc USB_IsOpenDevice              (DeviceIdx               ) returns (Bool                   );
+  rpc USB_CloseDevice               (DeviceIdx               ) returns (Empty  );
+  rpc FWR_DecodeErrPhaseName        (ErrPhaseRequest         ) returns (String                 );
+  rpc FWR_GetVersion                (DeviceIdx               ) returns (String                 );
+  rpc FWR_GetLastError              (DeviceIdx               ) returns (FwError                );
+  rpc FWR_GetWorkingMode            (DeviceIdx               ) returns (Int32                  );
+  rpc FWR_SetWorkingMode            (FwrSetWorkingModeRequest) returns (Empty  );
+  rpc FWR_RollBackToPermanentValues (DeviceIdx               ) returns (Empty  );
+  rpc FWR_StoreAsPermanentValues    (DeviceIdx               ) returns (Empty  );
+  rpc FWR_GetModuleMap              (GetModuleMapRequest     ) returns (Int32                  );
+  rpc FWR_GetModuleInfoByMapIdx     (MapIdxRequest           ) returns (ModuleInfo             );
+  rpc FWR_GetUptimeInfoByMapIdx     (MapIdxRequest           ) returns (UptimeInfo             );
+  rpc FWR_CreateSupportRequestText  (FwrRequestSupportRequest) returns (String                 );
+  rpc FWR_FreeModuleMap             (DeviceIdx               ) returns (Empty  );
+  rpc PRI_GetDeviceInfo             (PriRequest              ) returns (PrimaDevInfo           );
+  rpc PRI_DecodeOperationMode       (OperationModeRequest    ) returns (PrimaModeInfo          );
+  rpc PRI_GetOperationMode          (PriRequest              ) returns (Int32                 );
+  rpc PRI_SetOperationMode          (OperationModeRequest    ) returns (Empty  );
+  rpc PRI_DecodeTriggerSource       (TriggerSourceRequest    ) returns (TriggerInfo            );
+  rpc PRI_GetTriggerSource          (PriRequest              ) returns (Int32                  );
+  rpc PRI_SetTriggerSource          (TriggerSourceRequest    ) returns (Empty  );
+  rpc PRI_GetTriggerLevelLimits     (PriRequest              ) returns (TriggerLevelInfo       );
+  rpc PRI_GetTriggerLevel           (PriRequest              ) returns (Int32                  );
+  rpc PRI_SetTriggerLevel           (TriggerLevelRequest     ) returns (Empty  );
+  rpc PRI_GetFrequencyLimits        (PriRequest              ) returns (FrequencyLimitsResponse);
+  rpc PRI_GetFrequency              (PriRequest              ) returns (Int32                  );
+  rpc PRI_SetFrequency              (SetFrequencyRequest     ) returns (Empty  );
+  rpc PRI_GetGatingLimits           (PriRequest              ) returns (PrimaGatingInfo        );
+  rpc PRI_GetGatingData             (PriRequest              ) returns (GatingData             );
+  rpc PRI_SetGatingData             (GatingDataRequest       ) returns (Empty  );
+  rpc PRI_GetGatingEnabled          (PriRequest              ) returns (Bool                   );
+  rpc PRI_SetGatingEnabled          (GatingEnabledRequst     ) returns (Empty  );
+  rpc PRI_GetGateHighImpedance      (PriRequest              ) returns (Bool                   );
+  rpc PRI_SetGateHighImpedance      (HighImpeadanceRequest   ) returns (Empty  );
+  rpc PRI_DecodeWavelength          (WavelengthRequest       ) returns (Int32                  );
+  rpc PRI_GetWavelengthIdx          (PriRequest              ) returns (Int32                  );
+  rpc PRI_SetWavelengthIdx          (WavelengthRequest       ) returns (Empty  );
+  rpc PRI_GetIntensity              (WavelengthRequest       ) returns (Uint32                 );
+  rpc PRI_SetIntensity              (SetIntensityRequest     ) returns (Empty  );
+}
+
+
+// -----------------------------------------------------------------------------
+// Error type: Sepia2Error
+// -----------------------------------------------------------------------------
+
+// NOTE: The following is part of tonic library by default
+// Inspired from: https://github.com/hyperium/tonic/blob/78be69e92f297929d8f711d1927e4bdda8c324da/tonic-types/proto/status.proto#L37
+// More details at: https://grpc.io/docs/guides/status-codes/
+// Details on API Errors: https://google.aip.dev/193
+//message Status {
+//  int32 code = 1;
+//  string message = 2;
+//  repeated google.protobuf.Any details = 3;
+//}
+
+// NOTE: For now, instead of passing the following error, will use builting Status with error message displayed from the original error
 message Error {
   enum Sepia2Error {
     SEPIA2_ERR_NO_ERROR                                            = 0;       //  "no error" - NOTE: This shouldn't be reachable code
