@@ -3,23 +3,13 @@
 // Crate imports
 use sepia2_sys::api::*;
 use crate::error::Sepia2Error;
+use crate::types::*;
 
 // C types imports as casting helpers
 use std::ffi::{CStr, CString};
-use std::os::raw::{c_char, c_int, c_uchar};
+use std::os::raw::c_char;
 
 type Result<T> = std::result::Result<T, Sepia2Error>;
-
-// NOTE: Sepia2 doesn't return any "const *char", so this function is not useful
-fn take_ownership_string(ptr: *const c_char) -> Option<String> {
-    unsafe {
-        if ptr.is_null() {
-            None
-        } else {
-            Some(CStr::from_ptr(ptr).to_str().unwrap().to_string())
-        }
-    }
-}
 
 fn to_string(c_str: *const c_char) -> String {
     unsafe { CStr::from_ptr(c_str) }
@@ -34,6 +24,7 @@ fn to_string(c_str: *const c_char) -> String {
 
 // TODO: How to combine Sepia2Error into enum with any other possible Error type that is being used
 // here, such that we can catch other errors as well instead calling unwrap?
+// - ANSWER: Use Box<dyn std::error::Error> which accepts any type that implements the Error trait
 pub fn LIB_DecodeError(err_code: i32) -> Result<String> {
     let mut c_err_string: [c_char; 64] = [0; 64];
     match Sepia2Error::from_raw(unsafe {
@@ -71,11 +62,6 @@ pub fn LIB_IsRunningOnWine() -> Result<bool> {
     }
 }
 
-#[derive(Debug)]
-struct USBDevice {
-    ProductModel: String,
-    SerialNumber: String,
-}
 pub fn USB_OpenDevice(dev_idx: i32) -> Result<USBDevice> {
     let mut cProductModel: [c_char; 64] = [0; 64];
     let mut cSerialNumber: [c_char; 64] = [0; 64];
@@ -88,8 +74,8 @@ pub fn USB_OpenDevice(dev_idx: i32) -> Result<USBDevice> {
         )
     }) {
         Ok(_) => Ok(USBDevice {
-            ProductModel: to_string(cProductModel.as_ptr()),
-            SerialNumber: to_string(cSerialNumber.as_ptr()),
+            product_model: to_string(cProductModel.as_ptr()),
+            serial_number: to_string(cSerialNumber.as_ptr()),
         }),
         Err(e) => Err(e),
     }
@@ -106,8 +92,8 @@ pub fn USB_OpenGetSerNumAndClose(dev_idx: i32) -> Result<USBDevice> {
         )
     }) {
         Ok(_) => Ok(USBDevice {
-            ProductModel: to_string(cProductModel.as_ptr()),
-            SerialNumber: to_string(cSerialNumber.as_ptr()),
+            product_model: to_string(cProductModel.as_ptr()),
+            serial_number: to_string(cSerialNumber.as_ptr()),
         }),
         Err(e) => Err(e),
     }
@@ -180,15 +166,6 @@ pub fn FWR_GetVersion(dev_idx: i32) -> Result<String> {
         Ok(_) => Ok(to_string(cFWVersion.as_ptr())),
         Err(e) => Err(e),
     }
-}
-
-#[derive(Debug)]
-struct FwError {
-    err_code: i32,
-    phase: i32,
-    location: i32,
-    slot: i32,
-    condition: String,
 }
 
 pub fn FWR_GetLastError(dev_idx: i32) -> Result<FwError> {
@@ -268,13 +245,6 @@ pub fn FWR_GetModuleMap(dev_idx: i32, perform_restart: bool) -> Result<i32> {
     }
 }
 
-#[derive(Debug)]
-struct ModuleInfo {
-    slot_id: i32,
-    is_primary: bool,
-    is_back_plane: bool,
-    has_UTC: bool,
-}
 pub fn FWR_GetModuleInfoByMapIdx(dev_idx: i32, map_idx: i32) -> Result<ModuleInfo> {
     let mut piSlotId: i32 = 0;
     let mut pbIsPrimary: u8 = 0;
@@ -295,18 +265,12 @@ pub fn FWR_GetModuleInfoByMapIdx(dev_idx: i32, map_idx: i32) -> Result<ModuleInf
             slot_id: piSlotId,
             is_primary: pbIsPrimary != 0,
             is_back_plane: pbIsBackPlane != 0,
-            has_UTC: pbHasUptimeCounter != 0,
+            has_utc: pbHasUptimeCounter != 0,
         }),
         Err(e) => Err(e),
     }
 }
 
-#[derive(Debug)]
-struct UptimeInfo {
-    main_pwr_up: u32,
-    active_pwr_up: u32,
-    scaled_pwr_up: u32,
-}
 pub fn FWR_GetUptimeInfoByMapIdx(dev_idx: i32, map_idx: i32) -> Result<UptimeInfo> {
     let mut pulMainPowerUp: u32 = 0;
     let mut pulActivePowerUp: u32 = 0;
@@ -330,13 +294,6 @@ pub fn FWR_GetUptimeInfoByMapIdx(dev_idx: i32, map_idx: i32) -> Result<UptimeInf
     }
 }
 
-#[derive(Debug)]
-struct FwrRequestSupport {
-    preamble: String,
-    calling_sw: String,
-    options: i32,
-    buffer: i32,
-}
 pub fn FWR_CreateSupportRequestText(dev_idx: i32, fwr_req: FwrRequestSupport) -> Result<String> {
     let mut cBuffer: [c_char; 64] = [0; 64];
 
@@ -364,13 +321,6 @@ pub fn FWR_FreeModuleMap(dev_idx: i32) -> Result<()> {
     Sepia2Error::from_raw(unsafe { SEPIA2.SEPIA2_FWR_FreeModuleMap(dev_idx) })
 }
 
-#[derive(Debug)]
-struct PrimaDevInfo {
-    device_id: String,
-    device_type: String,
-    fw_version: String,
-    wl_count: i32,
-}
 pub fn PRI_GetDeviceInfo(dev_idx: i32, slot_id: i32) -> Result<PrimaDevInfo> {
     let mut pcDeviceID: [c_char; 64] = [0; 64];
     let mut pcDeviceType: [c_char; 64] = [0; 64];
@@ -397,11 +347,6 @@ pub fn PRI_GetDeviceInfo(dev_idx: i32, slot_id: i32) -> Result<PrimaDevInfo> {
     }
 }
 
-#[derive(Debug)]
-struct PrimaModeInfo {
-    oper_mode_idx: i32,
-    oper_mode: String,
-}
 pub fn PRI_DecodeOperationMode(
     dev_idx: i32,
     slot_id: i32,
@@ -448,13 +393,6 @@ pub fn PRI_SetOperationMode(dev_idx: i32, slot_id: i32, oper_mode_idx: i32) -> R
     })
 }
 
-#[derive(Debug)]
-struct TriggerInfo {
-    trg_src_idx: i32,
-    trg_src: String,
-    frequency_enabled: bool,
-    trig_level_enabled: bool,
-}
 pub fn PRI_DecodeTriggerSource(
     dev_idx: i32,
     slot_id: i32,
@@ -505,13 +443,6 @@ pub fn PRI_SetTriggerSource(dev_idx: i32, slot_id: i32, trg_src_idx: i32) -> Res
             trg_src_idx, // iTrgSrcIdx,
         )
     })
-}
-
-#[derive(Debug)]
-struct TriggerLevelInfo {
-    trg_min_lvl: i32,
-    trg_max_lvl: i32,
-    trg_lvl_res: i32,
 }
 
 pub fn PRI_GetTriggerLevelLimits(dev_idx: i32, slot_id: i32) -> Result<TriggerLevelInfo> {
@@ -599,13 +530,6 @@ pub fn PRI_SetFrequency(dev_idx: i32, slot_id: i32, frequency: i32) -> Result<()
     })
 }
 
-#[derive(Debug)]
-struct PrimaGatingInfo {
-    min_on_time: i32,
-    max_on_time: i32,
-    min_off_time_factor: i32,
-    max_off_time_factor: i32,
-}
 pub fn PRI_GetGatingLimits(dev_idx: i32, slot_id: i32) -> Result<PrimaGatingInfo> {
     let mut piMinOnTime: i32 = 0;
     let mut piMaxOnTime: i32 = 0;
