@@ -3,10 +3,17 @@
 - [ ] Configure feature for `sepia2-sys` to run for single-threaded or multi-threaded, based on how the static of the libloading is defined
     - simply lazy_static
     - lazy_static of wrapped `Arc<Mutex<Library>>`
-- [ ] Define service call routines based on `.proto` definition
+- [X] Define service call routines based on `.proto` definition
 - [ ] Implement logging channel that client can subscribe to
-- [ ] Implement error types for response messages
+- [X] Implement error types for response messages: Use protobuf::Status
 
+> [!WARN]
+>
+> At the moment the stub connection is composed of much code duplication becasue
+> proc_macro expands before basic macro_rules, such that placing a
+> `shim_connection!();` macro inside the impl wrapped in `#[tonic::async_trait]`
+> acts after the proc_macro, missing the TokenStream mutation to
+> `Send + Sync + 'static`
 
 ## Resources
 

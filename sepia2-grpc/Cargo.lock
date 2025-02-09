@@ -1118,6 +1118,7 @@ dependencies = [
  "log",
  "prost 0.13.4",
  "prost-build 0.13.4",
+ "prost-types 0.13.4",
  "sepia2",
  "stringcase",
  "tokio",
