@@ -62,7 +62,7 @@ pub fn LIB_IsRunningOnWine() -> Result<bool> {
     }
 }
 
-pub fn USB_OpenDevice(dev_idx: i32) -> Result<USBDevice> {
+pub fn USB_OpenDevice(dev_idx: i32) -> Result<UsbDevice> {
     let mut cProductModel: [c_char; 64] = [0; 64];
     let mut cSerialNumber: [c_char; 64] = [0; 64];
 
@@ -73,14 +73,14 @@ pub fn USB_OpenDevice(dev_idx: i32) -> Result<USBDevice> {
             cSerialNumber.as_mut_ptr(),
         )
     }) {
-        Ok(_) => Ok(USBDevice {
+        Ok(_) => Ok(UsbDevice {
             product_model: to_string(cProductModel.as_ptr()),
             serial_number: to_string(cSerialNumber.as_ptr()),
         }),
         Err(e) => Err(e),
     }
 }
-pub fn USB_OpenGetSerNumAndClose(dev_idx: i32) -> Result<USBDevice> {
+pub fn USB_OpenGetSerNumAndClose(dev_idx: i32) -> Result<UsbDevice> {
     let mut cProductModel: [c_char; 64] = [0; 64];
     let mut cSerialNumber: [c_char; 64] = [0; 64];
 
@@ -91,7 +91,7 @@ pub fn USB_OpenGetSerNumAndClose(dev_idx: i32) -> Result<USBDevice> {
             cSerialNumber.as_mut_ptr(),
         )
     }) {
-        Ok(_) => Ok(USBDevice {
+        Ok(_) => Ok(UsbDevice {
             product_model: to_string(cProductModel.as_ptr()),
             serial_number: to_string(cSerialNumber.as_ptr()),
         }),
@@ -168,7 +168,7 @@ pub fn FWR_GetVersion(dev_idx: i32) -> Result<String> {
     }
 }
 
-pub fn FWR_GetLastError(dev_idx: i32) -> Result<FwError> {
+pub fn FWR_GetLastError(dev_idx: i32) -> Result<FwrError> {
     let mut piErrCode: i32 = 0;
     let mut piPhase: i32 = 0;
     let mut piLocation: i32 = 0;
@@ -185,7 +185,7 @@ pub fn FWR_GetLastError(dev_idx: i32) -> Result<FwError> {
             cCondition.as_mut_ptr(),
         )
     }) {
-        Ok(_) => Ok(FwError {
+        Ok(_) => Ok(FwrError {
             err_code: piErrCode,
             phase: piPhase,
             location: piLocation,

@@ -1,12 +1,12 @@
 
 #[derive(Debug)]
-pub struct USBDevice {
+pub struct UsbDevice {
     pub product_model: String,
     pub serial_number: String,
 }
 
 #[derive(Debug)]
-pub struct FwError {
+pub struct FwrError {
     pub err_code: i32,
     pub phase: i32,
     pub location: i32,
