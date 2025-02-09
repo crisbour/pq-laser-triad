@@ -4,7 +4,20 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+async-stream = "0.3.6"
+futures-core = "0.3.31"
+log = "0.4.25"
 prost = "0.13.4"
+sepia2 = { version = "0.1.0", path = "../sepia2" }
+stringcase = "0.3.0"
+tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread"] }
+tonic = "0.12.3"
 
 [build-dependencies]
 prost-build = "0.13.4"
+tonic-build = "0.12.3"
+
+# server binary
+[[bin]]
+    name="server"
+    path="src/server.rs"

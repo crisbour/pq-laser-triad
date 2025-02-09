@@ -1,10 +1,13 @@
-extern crate prost_build;
+extern crate tonic_build;
 
-// TODO: Write `.proto` and generate API from it using `prost`
 fn main() {
     // Tell Cargo that if the given file changes, to rerun this build script.
     println!("cargo::rerun-if-changed=proto/api.proto");
 
-    prost_build::compile_protos(&["proto/api.proto"],
-                                &["proto/"]).unwrap();
+    tonic_build::configure()
+        .server_mod_attribute("attrs", "#[cfg(feature = \"server\")]")
+        .client_mod_attribute("attrs", "#[cfg(feature = \"client\")]")
+        .build_server(true)
+        .compile_protos(&["proto/api.proto"], &["proto/"])
+        .unwrap();
 }

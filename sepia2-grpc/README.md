@@ -14,4 +14,9 @@
 - [build gRPC APIs with
 Rust](https://konghq.com/blog/engineering/building-grpc-apis-with-rust)
     - [Insomnia testing gRPC](https://insomnia.rest/)
-
+- [gRPC Status details](https://ericb.xyz/posts/rust-tonic-grpc-errors/)
+incorporate details for error codes and messages, i.e. useful for stack
+unwrapping
+- [Rust Macros](https://doc.rust-lang.org/reference/macros-by-example.html)
+Macros documentation used to develop shim connection macros `proto API` <->
+`sepia2 API`
