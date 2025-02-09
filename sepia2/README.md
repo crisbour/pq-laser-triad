@@ -9,6 +9,7 @@
   twice and make sure there is no human errors introduced at translation
 
 > [!WARN]
+> 
 > Since the API is feature complete on this crate, is it necessary to generate
     the struct from proto here, or is it better to write macro that does
   from/into conversion for identical structs from different sources?
