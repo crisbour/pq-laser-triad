@@ -4,6 +4,7 @@
 use sepia2_sys::api::*;
 use crate::error::Sepia2Error;
 use crate::types::*;
+use crate::constants::*;
 
 // C types imports as casting helpers
 use std::ffi::{CStr, CString};
@@ -17,16 +18,26 @@ fn to_string(c_str: *const c_char) -> String {
         .into_owned()
 }
 
-// WARN: In the FFI that follows I used Rust primitives when possible instead of the std::os::raw
-// Is there a concern about the type equivalence across architectures? i.e. `c_int === i32`
+// TODO: Implement state tracker and cleanup on exit
+//struct Sepia2Context {
+//    dev_idx: i32,
+//    usb_device: UsbDevice,
+//    module_map_acquired: bool,
+//}
+//impl Drop for Sepia2Context {
+//    fn drop(&mut self) {
+//        if self.module_map_acquired {
+//            LIB_FW_FreeModuleMap(self.dev_idx);
+//        }
+//    }
+//}
 
-// TODO: Use constants from Sepia2_Def.h to set length of buffers instead of hardcoded values
 
 // TODO: How to combine Sepia2Error into enum with any other possible Error type that is being used
 // here, such that we can catch other errors as well instead calling unwrap?
 // - ANSWER: Use Box<dyn std::error::Error> which accepts any type that implements the Error trait
 pub fn LIB_DecodeError(err_code: i32) -> Result<String> {
-    let mut c_err_string: [c_char; 64] = [0; 64];
+    let mut c_err_string: [c_char; SEPIA2_ERRSTRING_LEN] = [0; SEPIA2_ERRSTRING_LEN];
     match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_LIB_DecodeError(err_code, c_err_string.as_mut_ptr())
     }) {
@@ -35,7 +46,7 @@ pub fn LIB_DecodeError(err_code: i32) -> Result<String> {
     }
 }
 pub fn LIB_GetVersion() -> Result<String> {
-    let mut c_lib_version: [c_char; 12] = [0; 12];
+    let mut c_lib_version: [c_char; SEPIA2_VERSIONINFO_LEN+1] = [0; SEPIA2_VERSIONINFO_LEN+1];
     match Sepia2Error::from_raw(unsafe { SEPIA2.SEPIA2_LIB_GetVersion(c_lib_version.as_mut_ptr()) })
     {
         Ok(_) => Ok(to_string(c_lib_version.as_ptr())),
@@ -63,8 +74,8 @@ pub fn LIB_IsRunningOnWine() -> Result<bool> {
 }
 
 pub fn USB_OpenDevice(dev_idx: i32) -> Result<UsbDevice> {
-    let mut cProductModel: [c_char; 64] = [0; 64];
-    let mut cSerialNumber: [c_char; 64] = [0; 64];
+    let mut cProductModel: [c_char; SEPIA2_PRODUCTMODEL_LEN] = [0; SEPIA2_PRODUCTMODEL_LEN];
+    let mut cSerialNumber: [c_char; SEPIA2_SERIALNUMBER_LEN] = [0; SEPIA2_SERIALNUMBER_LEN];
 
     match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_USB_OpenDevice(
@@ -81,8 +92,8 @@ pub fn USB_OpenDevice(dev_idx: i32) -> Result<UsbDevice> {
     }
 }
 pub fn USB_OpenGetSerNumAndClose(dev_idx: i32) -> Result<UsbDevice> {
-    let mut cProductModel: [c_char; 64] = [0; 64];
-    let mut cSerialNumber: [c_char; 64] = [0; 64];
+    let mut cProductModel: [c_char; SEPIA2_PRODUCTMODEL_LEN] = [0; SEPIA2_PRODUCTMODEL_LEN];
+    let mut cSerialNumber: [c_char; SEPIA2_SERIALNUMBER_LEN] = [0; SEPIA2_SERIALNUMBER_LEN];
 
     match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_USB_OpenGetSerNumAndClose(
@@ -99,7 +110,7 @@ pub fn USB_OpenGetSerNumAndClose(dev_idx: i32) -> Result<UsbDevice> {
     }
 }
 pub fn USB_GetStrDescriptor(dev_idx: i32) -> Result<String> {
-    let mut cDescriptor: [c_char; 64] = [0; 64];
+    let mut cDescriptor: [c_char; SEPIA2_USB_STRDECR_LEN] = [0; SEPIA2_USB_STRDECR_LEN];
 
     match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_USB_GetStrDescriptor(
@@ -112,7 +123,7 @@ pub fn USB_GetStrDescriptor(dev_idx: i32) -> Result<String> {
     }
 }
 pub fn USB_GetStrDescrByIdx(dev_idx: i32, descr_idx: i32) -> Result<String> {
-    let mut cDescriptor: [c_char; 64] = [0; 64];
+    let mut cDescriptor: [c_char; SEPIA2_USB_STRDECR_LEN] = [0; SEPIA2_USB_STRDECR_LEN];
 
     match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_USB_GetStrDescrByIdx(
@@ -142,7 +153,7 @@ pub fn USB_CloseDevice(dev_idx: i32) -> Result<()> {
     Sepia2Error::from_raw(unsafe { SEPIA2.SEPIA2_USB_CloseDevice(dev_idx) })
 }
 pub fn FWR_DecodeErrPhaseName(err_phase: i32) -> Result<String> {
-    let mut cErrorPhase: [c_char; 64] = [0; 64];
+    let mut cErrorPhase: [c_char; SEPIA2_FW_ERRPHASE_LEN] = [0; SEPIA2_FW_ERRPHASE_LEN];
 
     match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_FWR_DecodeErrPhaseName(
@@ -155,7 +166,7 @@ pub fn FWR_DecodeErrPhaseName(err_phase: i32) -> Result<String> {
     }
 }
 pub fn FWR_GetVersion(dev_idx: i32) -> Result<String> {
-    let mut cFWVersion: [c_char; 64] = [0; 64];
+    let mut cFWVersion: [c_char; SEPIA2_FW_VERSIONINFO_LEN] = [0; SEPIA2_FW_VERSIONINFO_LEN];
 
     match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_FWR_GetVersion(
@@ -173,7 +184,7 @@ pub fn FWR_GetLastError(dev_idx: i32) -> Result<FwrError> {
     let mut piPhase: i32 = 0;
     let mut piLocation: i32 = 0;
     let mut piSlot: i32 = 0;
-    let mut cCondition: [c_char; 64] = [0; 64];
+    let mut cCondition: [c_char; SEPIA2_FW_ERRCOND_LEN] = [0; SEPIA2_FW_ERRCOND_LEN];
 
     match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_FWR_GetLastError(
@@ -295,7 +306,8 @@ pub fn FWR_GetUptimeInfoByMapIdx(dev_idx: i32, map_idx: i32) -> Result<UptimeInf
 }
 
 pub fn FWR_CreateSupportRequestText(dev_idx: i32, fwr_req: FwrRequestSupport) -> Result<String> {
-    let mut cBuffer: [c_char; 64] = [0; 64];
+    // WARN: Length should be equal to fwr_req.buffer_len
+    let mut cBuffer: [c_char; 256] = [0; 256];
 
     let preamble = CString::new(fwr_req.preamble).expect("preamble contains null bytes");
     let calling_sw = CString::new(fwr_req.calling_sw).expect("preamble contains null bytes");
@@ -352,7 +364,7 @@ pub fn PRI_DecodeOperationMode(
     slot_id: i32,
     oper_mode_idx: i32,
 ) -> Result<PrimaModeInfo> {
-    let mut pcOperMode: [c_char; 64] = [0; 64];
+    let mut pcOperMode: [c_char; SEPIA2_PRI_OPERMODE_LEN] = [0; SEPIA2_PRI_OPERMODE_LEN];
 
     match Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_DecodeOperationMode(
@@ -398,7 +410,7 @@ pub fn PRI_DecodeTriggerSource(
     slot_id: i32,
     trg_src_idx: i32,
 ) -> Result<TriggerInfo> {
-    let mut pcTrgSrc: [c_char; 64] = [0; 64];
+    let mut pcTrgSrc: [c_char; SEPIA2_PRI_TRIGSRC_LEN] = [0; SEPIA2_PRI_TRIGSRC_LEN];
     let mut pbFrequencyEnabled: u8 = 0;
     let mut pbTrigLevelEnabled: u8 = 0;
 
@@ -520,6 +532,11 @@ pub fn PRI_GetFrequency(dev_idx: i32, slot_id: i32) -> Result<i32> {
         Err(e) => Err(e),
     }
 }
+
+// FIXME: frequncy is actually a 32 characters string:
+// "12300000 Hz"
+// "12300 kHz"
+// "12 MHz"
 pub fn PRI_SetFrequency(dev_idx: i32, slot_id: i32, frequency: i32) -> Result<()> {
     Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_SetFrequency(
