@@ -1,112 +1,10 @@
-use core::net::SocketAddr;
 use log::error;
 use named_pipe_stream::get_named_pipe_transport;
 use sepia2::api::*;
 use tonic::{transport::Server, Request, Response, Status};
 use stringcase::snake_case;
 
-mod named_pipe_stream;
-
-pub mod sepia2_rpc {
-    tonic::include_proto!("sepia2.rpc");
-
-    // FIXME: These can be handled much easier by using serde
-    macro_rules! convert_from {
-        ($ty:ident, $($field:ident),*) => {
-            impl From<sepia2::types::$ty> for $ty{
-                fn from(item: sepia2::types::$ty) -> $ty {
-                    Self {
-                        $( $field: item.$field, )*
-                    }
-                }
-            }
-        };
-    }
-    macro_rules! convert_into {
-        ($ty:ident, $($field:ident),*) => {
-            impl Into<sepia2::types::$ty> for $ty{
-                fn into(self: $ty ) -> sepia2::types::$ty {
-                    sepia2::types::$ty {
-                        $( $field: self.$field, )*
-                    }
-                }
-            }
-        };
-    }
-
-    macro_rules! convert_struct {
-        ($ty:ident, $($field:ident),*) => {
-            convert_from!($ty, $($field),*);
-            convert_into!($ty, $($field),*);
-        };
-    }
-
-
-    impl From<bool> for Bool {
-        fn from(item: bool) -> Self {
-            Self { value: item }
-        }
-    }
-
-    impl From<i32> for Int32{
-        fn from(item: i32) -> Self {
-            Self { value: item }
-        }
-    }
-
-    impl From<u16> for Uint32{
-        fn from(item: u16) -> Self {
-            Self { value: item as u32 }
-        }
-    }
-
-    convert_struct!(UsbDevice,  product_model, serial_number);
-    convert_struct!(FwrError,  err_code, phase, location, slot, condition);
-    convert_struct!(FwrRequestSupport, preamble, calling_sw, options, buffer);
-    convert_struct!(ModuleInfo, slot_id, is_primary, is_back_plane, has_utc);
-    convert_struct!(UptimeInfo, main_pwr_up, active_pwr_up, scaled_pwr_up);
-    convert_struct!(PrimaDevInfo, device_id, device_type, fw_version, wl_count);
-    convert_struct!(PrimaModeInfo, oper_mode_idx, oper_mode);
-    convert_struct!(TriggerInfo, trg_src_idx, trg_src, frequency_enabled, trig_level_enabled);
-    convert_struct!(TriggerLevelInfo, trg_min_lvl, trg_max_lvl, trg_lvl_res);
-    convert_struct!(PrimaGatingInfo, min_on_time, max_on_time, min_off_time_factor, max_off_time_factor);
-
-}
-
-impl From<String> for sepia2_rpc::String {
-    fn from(item: String) -> Self {
-        Self { value: item }
-    }
-}
-
-
-use sepia2_rpc::{
-    sepia2_server::{Sepia2, Sepia2Server},
-    DeviceIdx, LibDecodeErrorResponse,
-};
-
-// ---------------------------------------------------------
-// Server runtime
-// ---------------------------------------------------------
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // TODO: This address is for test, it must be replaced with the address configured from ENV or
-    // clac parsing
-    let addr: SocketAddr = "[::1]:50051".parse().unwrap();
-    let sepia2_service = Sepia2Service::default();
-    let svc = Sepia2Server::new(sepia2_service);
-
-    println!("Starting gRPC server for Sepia2 Lib");
-
-    //Server::builder().add_service(svc).serve(addr).await?;
-    Server::builder()
-        .add_service(svc)
-        .serve(addr)
-        //.serve_with_incoming(get_named_pipe_transport("prima-sepia2"))
-        .await?;
-    Ok(())
-}
+use sepia2_grpc::sepia2_rpc;
 
 // ---------------------------------------------------------
 // Server endpoints
@@ -120,9 +18,11 @@ macro_rules! response_construct {
     ($output:ty, $value:ident) => { sepia2_rpc::Version { version: $value } };
 }
 
+// TODO: Find workaround for macro_rules! to expand before `#[tonic::async_trait]` or integrate the
+// muttation that `#[tonic::async_trait]` does
 macro_rules! shim_connector_basic {
     ($func_grpc:tt, $func_sepia2:ident, $output:ty) => {
-        async fn lib_get_version(self, _: tonic::Request<()>) -> Result<tonic::Response<sepia2_rpc::Version>, tonic::Status> {
+        async fn $func_grpc(self, _: tonic::Request<()>) -> Result<tonic::Response<sepia2_rpc::Version>, tonic::Status> {
             println!("Got a request for {}", stringify!($func_sepia2));
             match $func_sepia2() {
                 Ok(result) => Ok(Response::new(response_construct!($output, result))),
@@ -132,16 +32,6 @@ macro_rules! shim_connector_basic {
                 }
             }
         }
-        //async fn $func_grpc(&self, request: Request<sepia2_rpc::Empty>) -> Result<Response<$output>, Status> {
-        //    println!("Got a request for {}: {:?}", stringify!($func_sepia2), request);
-        //    match $func_sepia2() {
-        //        Ok(result) => Ok(Response::new(response_construct!($output, result))),
-        //        Err(e) => {
-        //            error!("Calling {}: {}", stringify!($func_sepia2), e);
-        //            Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", stringify!($func_sepia2), e)))
-        //        }
-        //    }
-        //}
     };
     ($func_grpc:ident ,$func_sepia2:ident, $input:ty, $output:ty) => {
         async fn $func_grpc(&self, request: Request<$input>,) -> Result<Response<$output>, Status> {

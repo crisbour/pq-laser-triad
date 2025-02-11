@@ -6,6 +6,8 @@
 - [X] Define service call routines based on `.proto` definition
 - [ ] Implement logging channel that client can subscribe to
 - [X] Implement error types for response messages: Use protobuf::Status
+- [ ] (Optional) Implement reflection to make it more accessible to control the
+  laser
 
 > [!WARN]
 >
@@ -14,6 +16,39 @@
 > `shim_connection!();` macro inside the impl wrapped in `#[tonic::async_trait]`
 > acts after the proc_macro, missing the TokenStream mutation to
 > `Send + Sync + 'static`
+
+## Misc
+
+Another method to convert to/from sepia2::types and protobuf types than use
+`macro_rules!` is to use a `proc_macro` as follows, which generates the types
+with derive proc_macro annotations at prebuild step.
+```rust
+#[proc_macro_derive(ConvertBetween, attributes(other_type))]
+pub fn derive_convert_between(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = &input.ident;
+    let other_type = input.attrs.iter()
+        .find(|attr| attr.path.is_ident("other_type"))
+        .and_then(|attr| attr.parse_args::<syn::Type>().ok())
+        .expect("Missing #[other_type] attribute");
+
+    let expanded = quote! {
+        impl From<#other_type> for #name {
+            fn from(other: #other_type) -> Self {
+                unsafe { std::mem::transmute(other) }
+            }
+        }
+
+        impl From<#name> for #other_type {
+            fn from(this: #name) -> Self {
+                unsafe { std::mem::transmute(this) }
+            }
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+```
 
 ## Resources
 
