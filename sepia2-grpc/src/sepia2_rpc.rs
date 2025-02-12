@@ -1,5 +1,6 @@
 tonic::include_proto!("sepia2.rpc");
 
+
 // ----------- Glue logic -------------
 
 // FIXME: These can be handled much easier by using serde
@@ -53,17 +54,18 @@ impl From<u16> for Uint32{
     }
 }
 
-impl From<String> for sepia2_rpc::String {
-    fn from(item: String) -> Self {
+// NOTE: Here String=sepia2_rpc::String
+impl From<std::string::String> for String {
+    fn from(item: std::string::String) -> Self {
         Self { value: item }
     }
 }
 
-
-use sepia2_rpc::{
-    sepia2_server::{Sepia2, Sepia2Server},
-    DeviceIdx, LibDecodeErrorResponse,
-};
+impl From<(i32, i32)> for GatingData {
+    fn from(item: (i32, i32)) -> Self {
+        Self { on_time: item.0, off_time_factor: item.1}
+    }
+}
 
 convert_struct!(UsbDevice,  product_model, serial_number);
 convert_struct!(FwrError,  err_code, phase, location, slot, condition);

@@ -1,10 +1,91 @@
-use log::error;
-use named_pipe_stream::get_named_pipe_transport;
-use sepia2::api::*;
 use tonic::{transport::Server, Request, Response, Status};
-use stringcase::snake_case;
+use core::net::SocketAddr;
+use clap::Parser;
+use log::{info, warn, error, debug};
 
-use sepia2_grpc::sepia2_rpc;
+use sepia2::api::*;
+
+mod sepia2_rpc;
+mod named_pipe_stream;
+
+use sepia2_rpc::sepia2_server::{Sepia2, Sepia2Server};
+use named_pipe_stream::get_named_pipe_transport;
+
+// ---------------------------------------------------------
+// Server runtime
+// ---------------------------------------------------------
+
+/// gRPC server that controls PQ Laser through the Sepia2 library
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Choose TCP Socket as transport type and pick port to listen on
+    #[arg(short, long)]
+    tcp_socket: Option<String>,
+
+    /// Choose named pipes as trasnport and pick named for the pipe
+    #[arg(short, long)]
+    pipename: Option<String>,
+
+    /// Set port forwarding on the given machine
+    #[arg(short, long, default_value_t = false)]
+    forwarding: bool,
+
+    /// Force system type, otherwise it is detected automatically
+    #[arg(short, long)]
+    system: Option<String>,
+
+    /// Is the system running on wine? Consider how to setup port forwarding on the Linux host
+    #[arg(short, long, default_value_t = false)]
+    wine: bool,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init();
+    let args = Args::parse();
+
+    // tpc_socket |-> ~pipename
+    assert!(!args.tcp_socket.is_some() || !args.pipename.is_some(), "Expecting mutually exclusive tcp_socket or pipename");
+
+    // Setup port forwarding
+    if args.forwarding {
+        todo!("Setup port forwarding");
+        if args.wine {
+            todo!("Setup port forwarding on the linux host");
+        }
+    }
+
+    // Setup Sepia Service
+    let sepia2_service = Sepia2Service::default();
+    let svc = Sepia2Server::new(sepia2_service);
+
+    info!("Starting gRPC server for Sepia2 Lib");
+
+    if let Some(addr) = args.tcp_socket {
+        debug!("Trying to bind to: {}", addr);
+        let addr: SocketAddr = addr.parse()?;
+        info!("Listening on {}", addr);
+        Server::builder()
+            .add_service(svc)
+            .serve(addr)
+            .await?;
+    } else if let Some(pipename) = args.pipename {
+        Server::builder()
+            .add_service(svc)
+            .serve_with_incoming(get_named_pipe_transport(&pipename))
+            .await?;
+    } else {
+        let addr: SocketAddr = "[::1]:50051".parse().unwrap();
+        warn!("No socket chosen, default addr: {:?}", addr);
+        Server::builder()
+            .add_service(svc)
+            .serve(addr)
+            .await?;
+    }
+
+    Ok(())
+}
 
 // ---------------------------------------------------------
 // Server endpoints
@@ -12,40 +93,7 @@ use sepia2_grpc::sepia2_rpc;
 
 // TODO: Add here any state that we need to keep track of about the Laser
 #[derive(Debug, Default)]
-struct Sepia2Service;
-
-macro_rules! response_construct {
-    ($output:ty, $value:ident) => { sepia2_rpc::Version { version: $value } };
-}
-
-// TODO: Find workaround for macro_rules! to expand before `#[tonic::async_trait]` or integrate the
-// muttation that `#[tonic::async_trait]` does
-macro_rules! shim_connector_basic {
-    ($func_grpc:tt, $func_sepia2:ident, $output:ty) => {
-        async fn $func_grpc(self, _: tonic::Request<()>) -> Result<tonic::Response<sepia2_rpc::Version>, tonic::Status> {
-            println!("Got a request for {}", stringify!($func_sepia2));
-            match $func_sepia2() {
-                Ok(result) => Ok(Response::new(response_construct!($output, result))),
-                Err(e) => {
-                    error!("Calling {}: {}", stringify!($func_sepia2), e);
-                    Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", stringify!($func_sepia2), e)))
-                }
-            }
-        }
-    };
-    ($func_grpc:ident ,$func_sepia2:ident, $input:ty, $output:ty) => {
-        async fn $func_grpc(&self, request: Request<$input>,) -> Result<Response<$output>, Status> {
-            println!("Got a request for {}: {:?}", stringify!($func_sepia2), request);
-            match $func_sepia2(request.into_inner()) {
-                Ok(result) => Ok(Response::new($output { result })),
-                Err(e) => {
-                    error!("Calling {}: {}", stringify!($func_sepia2), e);
-                    Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", stringify!($func_sepia2), e)))
-                }
-            }
-        }
-    };
-}
+pub struct Sepia2Service;
 
 
 #[tonic::async_trait]
@@ -54,7 +102,7 @@ impl Sepia2 for Sepia2Service {
     async fn lib_decode_error(
         &self,
         request: Request<sepia2_rpc::Error>,
-    ) -> Result<Response<LibDecodeErrorResponse>, Status> {
+    ) -> Result<Response<sepia2_rpc::LibDecodeErrorResponse>, Status> {
         println!("Got a request for LIB_DecodeError: {:?}", request);
         match request.into_inner().error {
             Some(error) => match LIB_DecodeError(error) {
