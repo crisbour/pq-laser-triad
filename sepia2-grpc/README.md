@@ -3,10 +3,12 @@
 - [ ] Configure feature for `sepia2-sys` to run for single-threaded or multi-threaded, based on how the static of the libloading is defined
     - simply lazy_static
     - lazy_static of wrapped `Arc<Mutex<Library>>`
+    - NOTE: Seems to work fine without `Arc<Mutex>`, perhaps tokio identifies
+    that SEPIA2 is not `Sync`?
 - [X] Define service call routines based on `.proto` definition
 - [ ] Implement logging channel that client can subscribe to
 - [X] Implement error types for response messages: Use protobuf::Status
-- [ ] (Optional) Implement reflection to make it more accessible to control the
+- [X] (Optional) Implement reflection to make it more accessible to control the
   laser
 
 > [!WARN]

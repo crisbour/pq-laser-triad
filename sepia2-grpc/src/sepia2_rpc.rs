@@ -1,5 +1,7 @@
 tonic::include_proto!("sepia2.rpc");
 
+pub(crate) const FILE_DESCRIPTOR_SET: &[u8] =
+        tonic::include_file_descriptor_set!("sepia2_rpc_descriptor");
 
 // ----------- Glue logic -------------
 

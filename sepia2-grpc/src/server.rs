@@ -1,15 +1,15 @@
-use tonic::{transport::Server, Request, Response, Status};
-use core::net::SocketAddr;
 use clap::Parser;
-use log::{info, warn, error, debug};
+use core::net::SocketAddr;
+use log::{debug, error, info, warn};
+use tonic::{transport::Server, Request, Response, Status};
 
 use sepia2::api::*;
 
-mod sepia2_rpc;
 mod named_pipe_stream;
+mod sepia2_rpc;
 
-use sepia2_rpc::sepia2_server::{Sepia2, Sepia2Server};
 use named_pipe_stream::get_named_pipe_transport;
+use sepia2_rpc::sepia2_server::{Sepia2, Sepia2Server};
 
 // ---------------------------------------------------------
 // Server runtime
@@ -38,6 +38,10 @@ struct Args {
     /// Is the system running on wine? Consider how to setup port forwarding on the Linux host
     #[arg(short, long, default_value_t = false)]
     wine: bool,
+
+    /// Enable reflection for gRPC
+    #[arg(short, long, default_value_t = false)]
+    reflection: bool,
 }
 
 #[tokio::main]
@@ -46,7 +50,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
     // tpc_socket |-> ~pipename
-    assert!(!args.tcp_socket.is_some() || !args.pipename.is_some(), "Expecting mutually exclusive tcp_socket or pipename");
+    assert!(
+        !args.tcp_socket.is_some() || !args.pipename.is_some(),
+        "Expecting mutually exclusive tcp_socket or pipename"
+    );
 
     // Setup port forwarding
     if args.forwarding {
@@ -56,9 +63,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Setup Sepia Service
     let sepia2_service = Sepia2Service::default();
     let svc = Sepia2Server::new(sepia2_service);
+
+    let mut server = Server::builder().add_service(svc);
+
+    if args.reflection {
+        let reflection_svc = tonic_reflection::server::Builder::configure()
+            .register_encoded_file_descriptor_set(sepia2_rpc::FILE_DESCRIPTOR_SET)
+            .build_v1()
+            .unwrap();
+        server = server.add_service(reflection_svc);
+    }
 
     info!("Starting gRPC server for Sepia2 Lib");
 
@@ -66,22 +82,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         debug!("Trying to bind to: {}", addr);
         let addr: SocketAddr = addr.parse()?;
         info!("Listening on {}", addr);
-        Server::builder()
-            .add_service(svc)
-            .serve(addr)
-            .await?;
+        server.serve(addr).await?;
     } else if let Some(pipename) = args.pipename {
-        Server::builder()
-            .add_service(svc)
+        server
             .serve_with_incoming(get_named_pipe_transport(&pipename))
             .await?;
     } else {
         let addr: SocketAddr = "[::1]:50051".parse().unwrap();
         warn!("No socket chosen, default addr: {:?}", addr);
-        Server::builder()
-            .add_service(svc)
-            .serve(addr)
-            .await?;
+        server.serve(addr).await?;
     }
 
     Ok(())
@@ -95,7 +104,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[derive(Debug, Default)]
 pub struct Sepia2Service;
 
-
 #[tonic::async_trait]
 //TODO: #[expand_shim] macro to generate all the functions
 impl Sepia2 for Sepia2Service {
@@ -106,10 +114,15 @@ impl Sepia2 for Sepia2Service {
         println!("Got a request for LIB_DecodeError: {:?}", request);
         match request.into_inner().error {
             Some(error) => match LIB_DecodeError(error) {
-                Ok(err_str) => Ok(Response::new(sepia2_rpc::LibDecodeErrorResponse { err_str })),
+                Ok(err_str) => Ok(Response::new(sepia2_rpc::LibDecodeErrorResponse {
+                    err_str,
+                })),
                 Err(e) => {
                     error!("Calling LIB_DecodeError: {}", e);
-                    Err(Status::new(tonic::Code::Internal, format!("Calling LIB_DecodeError: {}", e)))
+                    Err(Status::new(
+                        tonic::Code::Internal,
+                        format!("Calling LIB_DecodeError: {}", e),
+                    ))
                 }
             },
             None => Err(Status::new(
@@ -130,10 +143,13 @@ impl Sepia2 for Sepia2Service {
     ) -> Result<Response<sepia2_rpc::Version>, Status> {
         println!("Got a request for {}", "LIB_GetVersion");
         match LIB_GetVersion() {
-            Ok(result) => Ok(Response::new(sepia2_rpc::Version{version: result})),
+            Ok(result) => Ok(Response::new(sepia2_rpc::Version { version: result })),
             Err(e) => {
                 error!("Calling {}: {}", "LIB_GetVersion", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "LIB_GetVersion", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "LIB_GetVersion", e),
+                ))
             }
         }
     }
@@ -144,10 +160,13 @@ impl Sepia2 for Sepia2Service {
     ) -> Result<Response<sepia2_rpc::Version>, Status> {
         println!("Got a request for {}", "LIB_GetLibUSBVersion");
         match LIB_GetLibUSBVersion() {
-            Ok(result) => Ok(Response::new(sepia2_rpc::Version{version: result})),
+            Ok(result) => Ok(Response::new(sepia2_rpc::Version { version: result })),
             Err(e) => {
                 error!("Calling {}: {}", "LIB_GetLibUSBVersion", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "LIB_GetLibUSBVersion", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "LIB_GetLibUSBVersion", e),
+                ))
             }
         }
     }
@@ -161,7 +180,10 @@ impl Sepia2 for Sepia2Service {
             Ok(result) => Ok(Response::new(sepia2_rpc::Bool::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "LIB_IsRunningOnWine", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "LIB_IsRunningOnWine", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "LIB_IsRunningOnWine", e),
+                ))
             }
         }
     }
@@ -176,7 +198,10 @@ impl Sepia2 for Sepia2Service {
             Ok(result) => Ok(Response::new(sepia2_rpc::UsbDevice::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "USB_OpenDevice", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "USB_OpenDevice", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "USB_OpenDevice", e),
+                ))
             }
         }
     }
@@ -184,12 +209,18 @@ impl Sepia2 for Sepia2Service {
         &self,
         req: Request<sepia2_rpc::DeviceIdx>,
     ) -> Result<Response<sepia2_rpc::UsbDevice>, Status> {
-        println!("Got a request for {}: {:?}", "USB_OpenGetSerNumAndClose", req);
+        println!(
+            "Got a request for {}: {:?}",
+            "USB_OpenGetSerNumAndClose", req
+        );
         match USB_OpenGetSerNumAndClose(req.into_inner().dev_idx) {
             Ok(result) => Ok(Response::new(sepia2_rpc::UsbDevice::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "USB_OpenGetSerNumAndClose", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "USB_OpenGetSerNumAndClose", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "USB_OpenGetSerNumAndClose", e),
+                ))
             }
         }
     }
@@ -202,7 +233,10 @@ impl Sepia2 for Sepia2Service {
             Ok(result) => Ok(Response::new(sepia2_rpc::String::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "USB_GetStrDescriptor", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "USB_GetStrDescriptor", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "USB_GetStrDescriptor", e),
+                ))
             }
         }
     }
@@ -216,7 +250,10 @@ impl Sepia2 for Sepia2Service {
             Ok(result) => Ok(Response::new(sepia2_rpc::String::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "USB_GetStrDescrByIdx", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "USB_GetStrDescrByIdx", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "USB_GetStrDescrByIdx", e),
+                ))
             }
         }
     }
@@ -229,7 +266,10 @@ impl Sepia2 for Sepia2Service {
             Ok(result) => Ok(Response::new(sepia2_rpc::Bool::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "USB_IsOpenDevice", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "USB_IsOpenDevice", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "USB_IsOpenDevice", e),
+                ))
             }
         }
     }
@@ -242,7 +282,10 @@ impl Sepia2 for Sepia2Service {
             Ok(_) => Ok(Response::new(())),
             Err(e) => {
                 error!("Calling {}: {}", "USB_CloseDevice", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "USB_CloseDevice", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "USB_CloseDevice", e),
+                ))
             }
         }
     }
@@ -255,7 +298,10 @@ impl Sepia2 for Sepia2Service {
             Ok(result) => Ok(Response::new(sepia2_rpc::String::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "FWR_GetVersion", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "FWR_GetVersion", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "FWR_GetVersion", e),
+                ))
             }
         }
     }
@@ -268,7 +314,10 @@ impl Sepia2 for Sepia2Service {
             Ok(result) => Ok(Response::new(sepia2_rpc::FwrError::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "FWR_GetLastError", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "FWR_GetLastError", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "FWR_GetLastError", e),
+                ))
             }
         }
     }
@@ -281,7 +330,10 @@ impl Sepia2 for Sepia2Service {
             Ok(result) => Ok(Response::new(sepia2_rpc::Int32::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "FWR_GetWorkingMode", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "FWR_GetWorkingMode", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "FWR_GetWorkingMode", e),
+                ))
             }
         }
     }
@@ -289,12 +341,18 @@ impl Sepia2 for Sepia2Service {
         &self,
         req: Request<sepia2_rpc::DeviceIdx>,
     ) -> Result<Response<()>, Status> {
-        println!("Got a request for {}: {:?}", "FWR_RollBackToPermanentValues", req);
+        println!(
+            "Got a request for {}: {:?}",
+            "FWR_RollBackToPermanentValues", req
+        );
         match FWR_RollBackToPermanentValues(req.into_inner().dev_idx) {
             Ok(_) => Ok(Response::new(())),
             Err(e) => {
                 error!("Calling {}: {}", "FWR_RollBackToPermanentValues", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "FWR_RollBackToPermanentValues", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "FWR_RollBackToPermanentValues", e),
+                ))
             }
         }
     }
@@ -302,12 +360,18 @@ impl Sepia2 for Sepia2Service {
         &self,
         req: Request<sepia2_rpc::DeviceIdx>,
     ) -> Result<Response<()>, Status> {
-        println!("Got a request for {}: {:?}", "FWR_StoreAsPermanentValues", req);
+        println!(
+            "Got a request for {}: {:?}",
+            "FWR_StoreAsPermanentValues", req
+        );
         match FWR_StoreAsPermanentValues(req.into_inner().dev_idx) {
             Ok(_) => Ok(Response::new(())),
             Err(e) => {
                 error!("Calling {}: {}", "FWR_StoreAsPermanentValues", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "FWR_StoreAsPermanentValues", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "FWR_StoreAsPermanentValues", e),
+                ))
             }
         }
     }
@@ -320,7 +384,10 @@ impl Sepia2 for Sepia2Service {
             Ok(_) => Ok(Response::new(())),
             Err(e) => {
                 error!("Calling {}: {}", "FWR_FreeModuleMap", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "FWR_FreeModuleMap", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "FWR_FreeModuleMap", e),
+                ))
             }
         }
     }
@@ -336,7 +403,10 @@ impl Sepia2 for Sepia2Service {
             Ok(result) => Ok(Response::new(sepia2_rpc::PrimaDevInfo::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_GetDeviceInfo", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_GetDeviceInfo", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_GetDeviceInfo", e),
+                ))
             }
         }
     }
@@ -350,7 +420,10 @@ impl Sepia2 for Sepia2Service {
             Ok(result) => Ok(Response::new(sepia2_rpc::Int32::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_GetOperationMode", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_GetOperationMode", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_GetOperationMode", e),
+                ))
             }
         }
     }
@@ -364,7 +437,10 @@ impl Sepia2 for Sepia2Service {
             Ok(result) => Ok(Response::new(sepia2_rpc::Int32::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_GetTriggerSource", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_GetTriggerSource", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_GetTriggerSource", e),
+                ))
             }
         }
     }
@@ -372,13 +448,19 @@ impl Sepia2 for Sepia2Service {
         &self,
         req: Request<sepia2_rpc::PriRequest>,
     ) -> Result<Response<sepia2_rpc::TriggerLevelInfo>, Status> {
-        println!("Got a request for {}: {:?}", "PRI_GetTriggerLevelLimits", req);
+        println!(
+            "Got a request for {}: {:?}",
+            "PRI_GetTriggerLevelLimits", req
+        );
         let req = req.into_inner();
         match PRI_GetTriggerLevelLimits(req.dev_idx, req.slot_id) {
             Ok(result) => Ok(Response::new(sepia2_rpc::TriggerLevelInfo::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_GetTriggerLevelLimits", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_GetTriggerLevelLimits", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_GetTriggerLevelLimits", e),
+                ))
             }
         }
     }
@@ -392,7 +474,10 @@ impl Sepia2 for Sepia2Service {
             Ok(result) => Ok(Response::new(sepia2_rpc::Int32::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_GetTriggerLevel", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_GetTriggerLevel", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_GetTriggerLevel", e),
+                ))
             }
         }
     }
@@ -403,10 +488,16 @@ impl Sepia2 for Sepia2Service {
         println!("Got a request for {}: {:?}", "PRI_GetFrequencyLimits", req);
         let req = req.into_inner();
         match PRI_GetFrequencyLimits(req.dev_idx, req.slot_id) {
-            Ok(result) => Ok(Response::new(sepia2_rpc::FrequencyLimitsResponse{min_freq: result.0, max_freq: result.1})),
+            Ok(result) => Ok(Response::new(sepia2_rpc::FrequencyLimitsResponse {
+                min_freq: result.0,
+                max_freq: result.1,
+            })),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_GetFrequencyLimits", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_GetFrequencyLimits", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_GetFrequencyLimits", e),
+                ))
             }
         }
     }
@@ -420,7 +511,10 @@ impl Sepia2 for Sepia2Service {
             Ok(result) => Ok(Response::new(sepia2_rpc::Int32::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_GetFrequency", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_GetFrequency", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_GetFrequency", e),
+                ))
             }
         }
     }
@@ -434,7 +528,10 @@ impl Sepia2 for Sepia2Service {
             Ok(result) => Ok(Response::new(sepia2_rpc::PrimaGatingInfo::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_GetGatingLimits", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_GetGatingLimits", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_GetGatingLimits", e),
+                ))
             }
         }
     }
@@ -445,10 +542,16 @@ impl Sepia2 for Sepia2Service {
         println!("Got a request for {}: {:?}", "PRI_GetGatingData", req);
         let req = req.into_inner();
         match PRI_GetGatingData(req.dev_idx, req.slot_id) {
-            Ok(result) => Ok(Response::new(sepia2_rpc::GatingData { on_time: result.0, off_time_factor: result.1})),
+            Ok(result) => Ok(Response::new(sepia2_rpc::GatingData {
+                on_time: result.0,
+                off_time_factor: result.1,
+            })),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_GetGatingData", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_GetGatingData", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_GetGatingData", e),
+                ))
             }
         }
     }
@@ -462,7 +565,10 @@ impl Sepia2 for Sepia2Service {
             Ok(result) => Ok(Response::new(sepia2_rpc::Bool::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_GetGatingEnabled", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_GetGatingEnabled", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_GetGatingEnabled", e),
+                ))
             }
         }
     }
@@ -470,13 +576,19 @@ impl Sepia2 for Sepia2Service {
         &self,
         req: Request<sepia2_rpc::PriRequest>,
     ) -> Result<Response<sepia2_rpc::Bool>, Status> {
-        println!("Got a request for {}: {:?}", "PRI_GetGateHighImpedance", req);
+        println!(
+            "Got a request for {}: {:?}",
+            "PRI_GetGateHighImpedance", req
+        );
         let req = req.into_inner();
         match PRI_GetGateHighImpedance(req.dev_idx, req.slot_id) {
             Ok(result) => Ok(Response::new(sepia2_rpc::Bool::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_GetGateHighImpedance", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_GetGateHighImpedance", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_GetGateHighImpedance", e),
+                ))
             }
         }
     }
@@ -490,7 +602,10 @@ impl Sepia2 for Sepia2Service {
             Ok(result) => Ok(Response::new(sepia2_rpc::Int32::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_GetWavelengthIdx", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_GetWavelengthIdx", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_GetWavelengthIdx", e),
+                ))
             }
         }
     }
@@ -501,13 +616,19 @@ impl Sepia2 for Sepia2Service {
         &self,
         req: Request<sepia2_rpc::MapIdxRequest>,
     ) -> Result<Response<sepia2_rpc::ModuleInfo>, Status> {
-        println!("Got a request for {}: {:?}", "FWR_GetModuleInfoByMapIdx", req);
+        println!(
+            "Got a request for {}: {:?}",
+            "FWR_GetModuleInfoByMapIdx", req
+        );
         let req = req.into_inner();
         match FWR_GetModuleInfoByMapIdx(req.dev_idx, req.map_idx) {
             Ok(result) => Ok(Response::new(sepia2_rpc::ModuleInfo::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "FWR_GetModuleInfoByMapIdx", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "FWR_GetModuleInfoByMapIdx", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "FWR_GetModuleInfoByMapIdx", e),
+                ))
             }
         }
     }
@@ -516,13 +637,19 @@ impl Sepia2 for Sepia2Service {
         &self,
         req: Request<sepia2_rpc::MapIdxRequest>,
     ) -> Result<Response<sepia2_rpc::UptimeInfo>, Status> {
-        println!("Got a request for {}: {:?}", "FWR_GetUptimeInfoByMapIdx", req);
+        println!(
+            "Got a request for {}: {:?}",
+            "FWR_GetUptimeInfoByMapIdx", req
+        );
         let req = req.into_inner();
         match FWR_GetUptimeInfoByMapIdx(req.dev_idx, req.map_idx) {
             Ok(result) => Ok(Response::new(sepia2_rpc::UptimeInfo::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "FWR_GetUptimeInfoByMapIdx", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "FWR_GetUptimeInfoByMapIdx", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "FWR_GetUptimeInfoByMapIdx", e),
+                ))
             }
         }
     }
@@ -537,13 +664,21 @@ impl Sepia2 for Sepia2Service {
         let req = req.into_inner();
         let pri_req = match req.pri_req {
             Some(pri_req) => pri_req,
-            None => return Err(Status::new(tonic::Code::InvalidArgument, "No PriRequest{dev_idx, slot_id} provided")),
+            None => {
+                return Err(Status::new(
+                    tonic::Code::InvalidArgument,
+                    "No PriRequest{dev_idx, slot_id} provided",
+                ))
+            }
         };
         match PRI_DecodeTriggerSource(pri_req.dev_idx, pri_req.slot_id, req.trg_src_idx) {
             Ok(result) => Ok(Response::new(sepia2_rpc::TriggerInfo::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_DecodeTriggerSource", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_DecodeTriggerSource", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_DecodeTriggerSource", e),
+                ))
             }
         }
     }
@@ -555,13 +690,21 @@ impl Sepia2 for Sepia2Service {
         let req = req.into_inner();
         let pri_req = match req.pri_req {
             Some(pri_req) => pri_req,
-            None => return Err(Status::new(tonic::Code::InvalidArgument, "No PriRequest{dev_idx, slot_id} provided")),
+            None => {
+                return Err(Status::new(
+                    tonic::Code::InvalidArgument,
+                    "No PriRequest{dev_idx, slot_id} provided",
+                ))
+            }
         };
         match PRI_SetTriggerSource(pri_req.dev_idx, pri_req.slot_id, req.trg_src_idx) {
             Ok(_) => Ok(Response::new(())),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_SetTriggerSource", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_SetTriggerSource", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_SetTriggerSource", e),
+                ))
             }
         }
     }
@@ -576,13 +719,21 @@ impl Sepia2 for Sepia2Service {
         let req = req.into_inner();
         let pri_req = match req.pri_req {
             Some(pri_req) => pri_req,
-            None => return Err(Status::new(tonic::Code::InvalidArgument, "No PriRequest{dev_idx, slot_id} provided")),
+            None => {
+                return Err(Status::new(
+                    tonic::Code::InvalidArgument,
+                    "No PriRequest{dev_idx, slot_id} provided",
+                ))
+            }
         };
         match PRI_DecodeWavelength(pri_req.dev_idx, pri_req.slot_id, req.wl_idx) {
             Ok(result) => Ok(Response::new(sepia2_rpc::Int32::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_DecodeWavelength", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_DecodeWavelength", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_DecodeWavelength", e),
+                ))
             }
         }
     }
@@ -594,13 +745,21 @@ impl Sepia2 for Sepia2Service {
         let req = req.into_inner();
         let pri_req = match req.pri_req {
             Some(pri_req) => pri_req,
-            None => return Err(Status::new(tonic::Code::InvalidArgument, "No PriRequest{dev_idx, slot_id} provided")),
+            None => {
+                return Err(Status::new(
+                    tonic::Code::InvalidArgument,
+                    "No PriRequest{dev_idx, slot_id} provided",
+                ))
+            }
         };
         match PRI_SetWavelengthIdx(pri_req.dev_idx, pri_req.slot_id, req.wl_idx) {
             Ok(_) => Ok(Response::new(())),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_SetWavelengthIdx", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_SetWavelengthIdx", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_SetWavelengthIdx", e),
+                ))
             }
         }
     }
@@ -612,13 +771,21 @@ impl Sepia2 for Sepia2Service {
         let req = req.into_inner();
         let pri_req = match req.pri_req {
             Some(pri_req) => pri_req,
-            None => return Err(Status::new(tonic::Code::InvalidArgument, "No PriRequest{dev_idx, slot_id} provided")),
+            None => {
+                return Err(Status::new(
+                    tonic::Code::InvalidArgument,
+                    "No PriRequest{dev_idx, slot_id} provided",
+                ))
+            }
         };
         match PRI_GetIntensity(pri_req.dev_idx, pri_req.slot_id, req.wl_idx) {
             Ok(result) => Ok(Response::new(sepia2_rpc::Uint32::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_GetIntensity", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_GetIntensity", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_GetIntensity", e),
+                ))
             }
         }
     }
@@ -633,13 +800,21 @@ impl Sepia2 for Sepia2Service {
         let req = req.into_inner();
         let pri_req = match req.pri_req {
             Some(pri_req) => pri_req,
-            None => return Err(Status::new(tonic::Code::InvalidArgument, "No PriRequest{dev_idx, slot_id} provided")),
+            None => {
+                return Err(Status::new(
+                    tonic::Code::InvalidArgument,
+                    "No PriRequest{dev_idx, slot_id} provided",
+                ))
+            }
         };
         match PRI_DecodeOperationMode(pri_req.dev_idx, pri_req.slot_id, req.oper_mode_idx) {
             Ok(result) => Ok(Response::new(sepia2_rpc::PrimaModeInfo::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_DecodeOperationMode", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_DecodeOperationMode", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_DecodeOperationMode", e),
+                ))
             }
         }
     }
@@ -651,13 +826,21 @@ impl Sepia2 for Sepia2Service {
         let req = req.into_inner();
         let pri_req = match req.pri_req {
             Some(pri_req) => pri_req,
-            None => return Err(Status::new(tonic::Code::InvalidArgument, "No PriRequest{dev_idx, slot_id} provided")),
+            None => {
+                return Err(Status::new(
+                    tonic::Code::InvalidArgument,
+                    "No PriRequest{dev_idx, slot_id} provided",
+                ))
+            }
         };
         match PRI_SetOperationMode(pri_req.dev_idx, pri_req.slot_id, req.oper_mode_idx) {
             Ok(_) => Ok(Response::new(())),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_SetOperationMode", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_SetOperationMode", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_SetOperationMode", e),
+                ))
             }
         }
     }
@@ -674,7 +857,10 @@ impl Sepia2 for Sepia2Service {
             Ok(result) => Ok(Response::new(sepia2_rpc::String::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "FWR_DecodeErrPhaseName", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "FWR_DecodeErrPhaseName", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "FWR_DecodeErrPhaseName", e),
+                ))
             }
         }
     }
@@ -688,7 +874,10 @@ impl Sepia2 for Sepia2Service {
             Ok(_) => Ok(Response::new(())),
             Err(e) => {
                 error!("Calling {}: {}", "FWR_SetWorkingMode", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "FWR_SetWorkingMode", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "FWR_SetWorkingMode", e),
+                ))
             }
         }
     }
@@ -702,7 +891,10 @@ impl Sepia2 for Sepia2Service {
             Ok(result) => Ok(Response::new(sepia2_rpc::Int32::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "FWR_GetModuleMap", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "FWR_GetModuleMap", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "FWR_GetModuleMap", e),
+                ))
             }
         }
     }
@@ -710,17 +902,28 @@ impl Sepia2 for Sepia2Service {
         &self,
         req: Request<sepia2_rpc::FwrRequestSupportRequest>,
     ) -> Result<Response<sepia2_rpc::String>, Status> {
-        println!("Got a request for {}: {:?}", "FWR_CreateSupportRequestText", req);
+        println!(
+            "Got a request for {}: {:?}",
+            "FWR_CreateSupportRequestText", req
+        );
         let req = req.into_inner();
         let fwr_req = match req.fwr_req {
             Some(pri_req) => pri_req,
-            None => return Err(Status::new(tonic::Code::InvalidArgument, "No FweRequestSupport{preamable, calling_sw, options, buffer} provided")),
+            None => {
+                return Err(Status::new(
+                    tonic::Code::InvalidArgument,
+                    "No FweRequestSupport{preamable, calling_sw, options, buffer} provided",
+                ))
+            }
         };
         match FWR_CreateSupportRequestText(req.dev_idx, fwr_req.into()) {
             Ok(result) => Ok(Response::new(sepia2_rpc::String::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "FWR_CreateSupportRequestText", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "FWR_CreateSupportRequestText", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "FWR_CreateSupportRequestText", e),
+                ))
             }
         }
     }
@@ -732,13 +935,21 @@ impl Sepia2 for Sepia2Service {
         let req = req.into_inner();
         let pri_req = match req.pri_req {
             Some(pri_req) => pri_req,
-            None => return Err(Status::new(tonic::Code::InvalidArgument, "No PriRequest{dev_idx, slot_id} provided")),
+            None => {
+                return Err(Status::new(
+                    tonic::Code::InvalidArgument,
+                    "No PriRequest{dev_idx, slot_id} provided",
+                ))
+            }
         };
         match PRI_SetTriggerLevel(pri_req.dev_idx, pri_req.slot_id, req.trg_lvl) {
             Ok(_) => Ok(Response::new(())),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_SetTriggerLevel", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_SetTriggerLevel", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_SetTriggerLevel", e),
+                ))
             }
         }
     }
@@ -750,13 +961,21 @@ impl Sepia2 for Sepia2Service {
         let req = req.into_inner();
         let pri_req = match req.pri_req {
             Some(pri_req) => pri_req,
-            None => return Err(Status::new(tonic::Code::InvalidArgument, "No PriRequest{dev_idx, slot_id} provided")),
+            None => {
+                return Err(Status::new(
+                    tonic::Code::InvalidArgument,
+                    "No PriRequest{dev_idx, slot_id} provided",
+                ))
+            }
         };
         match PRI_SetFrequency(pri_req.dev_idx, pri_req.slot_id, req.frequency) {
             Ok(_) => Ok(Response::new(())),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_SetFrequency", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_SetFrequency", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_SetFrequency", e),
+                ))
             }
         }
     }
@@ -768,17 +987,35 @@ impl Sepia2 for Sepia2Service {
         let req = req.into_inner();
         let pri_req = match req.pri_req {
             Some(pri_req) => pri_req,
-            None => return Err(Status::new(tonic::Code::InvalidArgument, "No PriRequest{dev_idx, slot_id} provided")),
+            None => {
+                return Err(Status::new(
+                    tonic::Code::InvalidArgument,
+                    "No PriRequest{dev_idx, slot_id} provided",
+                ))
+            }
         };
         let gating_data = match req.gating_data {
             Some(gating_data) => gating_data,
-            None => return Err(Status::new(tonic::Code::InvalidArgument, "No GatingData{on_time, off_time} provided")),
+            None => {
+                return Err(Status::new(
+                    tonic::Code::InvalidArgument,
+                    "No GatingData{on_time, off_time} provided",
+                ))
+            }
         };
-        match PRI_SetGatingData(pri_req.dev_idx, pri_req.slot_id, gating_data.on_time, gating_data.off_time_factor) {
+        match PRI_SetGatingData(
+            pri_req.dev_idx,
+            pri_req.slot_id,
+            gating_data.on_time,
+            gating_data.off_time_factor,
+        ) {
             Ok(_) => Ok(Response::new(())),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_SetGatingData", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_SetGatingData", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_SetGatingData", e),
+                ))
             }
         }
     }
@@ -790,13 +1027,21 @@ impl Sepia2 for Sepia2Service {
         let req = req.into_inner();
         let pri_req = match req.pri_req {
             Some(pri_req) => pri_req,
-            None => return Err(Status::new(tonic::Code::InvalidArgument, "No PriRequest{dev_idx, slot_id} provided")),
+            None => {
+                return Err(Status::new(
+                    tonic::Code::InvalidArgument,
+                    "No PriRequest{dev_idx, slot_id} provided",
+                ))
+            }
         };
         match PRI_SetGatingEnabled(pri_req.dev_idx, pri_req.slot_id, req.gating_enabled) {
             Ok(_) => Ok(Response::new(())),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_SetGatingEnabled", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_SetGatingEnabled", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_SetGatingEnabled", e),
+                ))
             }
         }
     }
@@ -804,17 +1049,28 @@ impl Sepia2 for Sepia2Service {
         &self,
         req: Request<sepia2_rpc::HighImpedanceRequest>,
     ) -> Result<Response<()>, Status> {
-        println!("Got a request for {}: {:?}", "PRI_SetGateHighImpedance", req);
+        println!(
+            "Got a request for {}: {:?}",
+            "PRI_SetGateHighImpedance", req
+        );
         let req = req.into_inner();
         let pri_req = match req.pri_req {
             Some(pri_req) => pri_req,
-            None => return Err(Status::new(tonic::Code::InvalidArgument, "No PriRequest{dev_idx, slot_id} provided")),
+            None => {
+                return Err(Status::new(
+                    tonic::Code::InvalidArgument,
+                    "No PriRequest{dev_idx, slot_id} provided",
+                ))
+            }
         };
         match PRI_SetGateHighImpedance(pri_req.dev_idx, pri_req.slot_id, req.high_impedance) {
             Ok(_) => Ok(Response::new(())),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_SetGateHighImpedance", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_SetGateHighImpedance", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_SetGateHighImpedance", e),
+                ))
             }
         }
     }
@@ -826,17 +1082,35 @@ impl Sepia2 for Sepia2Service {
         let req = req.into_inner();
         let wl_req = match req.wl_req {
             Some(pri_req) => pri_req,
-            None => return Err(Status::new(tonic::Code::InvalidArgument, "No WavelengthRequest{PriRequest, wl_idx} provided")),
+            None => {
+                return Err(Status::new(
+                    tonic::Code::InvalidArgument,
+                    "No WavelengthRequest{PriRequest, wl_idx} provided",
+                ))
+            }
         };
         let pri_req = match wl_req.pri_req {
             Some(pri_req) => pri_req,
-            None => return Err(Status::new(tonic::Code::InvalidArgument, "No PriRequest{dev_idx, slot_id} provided")),
+            None => {
+                return Err(Status::new(
+                    tonic::Code::InvalidArgument,
+                    "No PriRequest{dev_idx, slot_id} provided",
+                ))
+            }
         };
-        match PRI_SetIntensity(pri_req.dev_idx, pri_req.slot_id, wl_req.wl_idx, req.intensity as u16) {
+        match PRI_SetIntensity(
+            pri_req.dev_idx,
+            pri_req.slot_id,
+            wl_req.wl_idx,
+            req.intensity as u16,
+        ) {
             Ok(_) => Ok(Response::new(())),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_SetIntensity", e);
-                Err(Status::new(tonic::Code::Internal, format!("Calling {}: {}", "PRI_SetIntensity", e)))
+                Err(Status::new(
+                    tonic::Code::Internal,
+                    format!("Calling {}: {}", "PRI_SetIntensity", e),
+                ))
             }
         }
     }
