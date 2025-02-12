@@ -1,2 +1,6 @@
+// Library export
 pub mod client;
-pub mod sepia2_rpc;
+pub use sepia2;
+
+// Internal use
+mod sepia2_rpc;
