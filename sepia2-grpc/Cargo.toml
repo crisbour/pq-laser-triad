@@ -9,6 +9,7 @@ clap = { version = "4.5.29", features = ["derive"] }
 env_logger = "0.11.6"
 futures-core = "0.3.31"
 log = "0.4.25"
+oneshot = "0.1.10"
 prost = "0.13.4"
 prost-types = "0.13.4"
 sepia2 = { version = "0.1.0", path = "../sepia2" }
