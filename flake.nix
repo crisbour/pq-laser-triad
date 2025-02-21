@@ -65,6 +65,8 @@
             protobuf # required for google import *.proto
             openssl
             pkg-config
+            clang
+            llvmPackages_18.libclang
             cargo-deny
             cargo-edit
             cargo-watch
@@ -78,6 +80,7 @@
             WINEPREFIX = toString ./.wine;
 
             LIBCLANG_PATH = "${pkgs.llvmPackages_18.libclang.lib}/lib";
+            LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib";
           };
         };
       });

@@ -1,4 +1,7 @@
+// API only available to use from windows
+#[cfg(target_os = "windows")]
 pub mod api;
+
 pub mod errors;
 pub mod types;
 pub mod constants;

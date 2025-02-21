@@ -1,5 +1,7 @@
 tonic::include_proto!("sepia2.rpc");
 
+// This is only used by server, so don't throw a warning when lib is compiled for client
+#[allow(dead_code)]
 pub(crate) const FILE_DESCRIPTOR_SET: &[u8] =
         tonic::include_file_descriptor_set!("sepia2_rpc_descriptor");
 
