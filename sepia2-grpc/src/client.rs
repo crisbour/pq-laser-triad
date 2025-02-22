@@ -495,26 +495,72 @@ impl Sepia2Service {
 // TODO: Use a proc_macro like `#[tonic::async_trait]` to transform calls into sync,
 // removing all `async` and wrap all Future calls into a tokio runtime with `block_on`
 
-enum ClientReq {
-    // TODO: Fill in all API calls and parameters used for it
-}
-
 lazy_static! {
-    CLIENT_SERVICE = mpsc::Channel<ClientReq, oneshot::Channel>;
+    CLIENT_SERVICE_CH = mpsc::Channel<ClientReq, oneshot::Channel>;
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn client_service(addr: &str) -> Result<(), Box<dyn std::error::Error>> {
 
     /// Wait for MPSC to receive instructions about adress to connect to
     // TODO: Read MPSC channel for ClientCommand::Connect
-    let mut client = Sepia2Client::connect("http://[::1]:10000").await?;
+    let mut client = Sepia2Client::connect(addr.into()).await?;
 
     loop {
         (req, resp_channel) = CLIENT_SERVICE.recv().expect("Something gone wrong in the MPSC transmission");
         /// For each command received query the server through gRPC and return the result through a
         /// oneshot channel
         println!("*** SIMPLE RPC ***");
+        let response = match req {
+            LibDecodeError{err_code}                                     => func(),
+            LibGetVersion                                                => func(),
+            LibGetLibUSBVersion                                          => func(),
+            LibIsRunningOnWine                                           => func(),
+            UsbOpenDevice{dev_idx}                                       => func(),
+            UsbOpenGetSerNumAndClose{dev_idx}                            => func(),
+            UsbGetStrDescriptor{dev_idx}                                 => func(),
+            UsbGetStrDescrByIdx{dev_idx, descr_idx}                      => func(),
+            UsbIsOpenDevice{dev_idx}                                     => func(),
+            UsbCloseDevice{dev_idx}                                      => func(),
+            FwrDecodeErrPhaseName{err_phase}                             => func(),
+            FwrGetVersion{dev_idx}                                       => func(),
+            FwrGetLastError{dev_idx}                                     => func(),
+            FwrGetWorkingMode{dev_idx}                                   => func(),
+            FwrSetWorkingMode{dev_idx, mode}                             => func(),
+            FwrRollBackToPermanentValues{dev_idx}                        => func(),
+            FwrStoreAsPermanentValues{dev_idx}                           => func(),
+            FwrGetModuleMap{dev_idx, perform_restart}                    => func(),
+            FwrGetModuleInfoByMapIdx{dev_idx, map_idx}                   => func(),
+            FwrGetUptimeInfoByMapIdx{dev_idx, map_idx}                   => func(),
+            FwrCreateSupportRequestText{dev_idx, fwr_req}                => func(),
+            FwrFreeModuleMap{dev_idx}                                    => func(),
+            PriGetDeviceInfo{dev_idx, slot_id}                           => func(),
+            PriDecodeOperationMode{dev_idx, slot_id, oper_mode_idx}      => func(),
+            PriGetOperationMode{dev_idx, slot_id}                        => func(),
+            PriSetOperationMode{dev_idx, slot_id, oper_mode_idx}         => func(),
+            PriDecodeTriggerSource{dev_idx, slot_id, trg_src_idx}        => func(),
+            PriGetTriggerSource{dev_idx, slot_id}                        => func(),
+            PriSetTriggerSource{dev_idx, slot_id, trg_src_idx}           => func(),
+            PriGetTriggerLevelLimits{dev_idx, slot_id}                   => func(),
+            PriGetTriggerLevel{dev_idx, slot_id}                         => func(),
+            PriSetTriggerLevel{dev_idx, slot_id, trg_lvl}                => func(),
+            PriGetFrequencyLimits{dev_idx, slot_id}                      => func(),
+            PriGetFrequency{dev_idx, slot_id}                            => func(),
+            PriSetFrequency{dev_idx, slot_id, frequency}                 => func(),
+            PriGetGatingLimits{dev_idx, slot_id}                         => func(),
+            PriGetGatingData{dev_idx, slot_id}                           => func(),
+            PriSetGatingData{dev_idx, slot_id, on_time, off_time_factor} => func(),
+            PriGetGatingEnabled{dev_idx, slot_id}                        => func(),
+            PriSetGatingEnabled{dev_idx, slot_id, gating_enabled}        => func(),
+            PriGetGateHighImpedance{dev_idx, slot_id}                    => func(),
+            PriSetGateHighImpedance{dev_idx, slot_id, high_impedance}    => func(),
+            PriDecodeWavelength{dev_idx, slot_id, wl_idx}                => func(),
+            PriGetWavelengthIdx{dev_idx, slot_id}                        => func(),
+            PriSetWavelengthIdx{dev_idx, slot_id, wl_idx}                => func(),
+            PriGetIntensity{dev_idx, slot_id, wl_idx}                    => func(),
+            PriSetIntensity{dev_idx, slot_id, wl_idx, w_intensity}       => func(),
+
+
+        }.await?;
         let response = client
             .get_feature(Request::new(Point {
                 latitude: 409_146_138,
@@ -523,9 +569,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .await?;
         resp_channel.send(response).expect("Something gone wrong in the oneshot transmission");
         println!("RESPONSE = {:?}", response);
-        
     }
     Ok(())
+}
+
+pub extern "C" fn SpawnClient(addr: CString) {
+    CLIENT_SERVICE = Sepia2Service::new(addr.into()).expect("Couldn't connect to gRPC server {addr}");
 }
 
 pub extern "C" fn LIB_DecodeError(
@@ -1008,3 +1057,102 @@ pub extern "C" fn PRI_SetIntensity(
     Ok(())
 }
 
+enum ClientReq {
+    LibDecodeError{ err_code: i32},
+    LibGetVersion,
+    LibGetLibUSBVersion,
+    LibIsRunningOnWine,
+    UsbOpenDevice{dev_idx: i32},
+    UsbOpenGetSerNumAndClose{dev_idx: i32},
+    UsbGetStrDescriptor{dev_idx: i32},
+    UsbGetStrDescrByIdx{dev_idx: i32, descr_idx: i32},
+    UsbIsOpenDevice{dev_idx: i32},
+    UsbCloseDevice{dev_idx: i32},
+    FwrDecodeErrPhaseName{err_phase: i32},
+    FwrGetVersion{dev_idx: i32},
+    FwrGetLastError{dev_idx: i32},
+    FwrGetWorkingMode{dev_idx: i32},
+    FwrSetWorkingMode{dev_idx: i32, mode: i32},
+    FwrRollBackToPermanentValues{dev_idx: i32},
+    FwrStoreAsPermanentValues{dev_idx: i32},
+    FwrGetModuleMap{dev_idx: i32, perform_restart: bool},
+    FwrGetModuleInfoByMapIdx{dev_idx: i32, map_idx: i32},
+    FwrGetUptimeInfoByMapIdx{dev_idx: i32, map_idx: i32},
+    FwrCreateSupportRequestText{dev_idx: i32, fwr_req: FwrRequestSupport},
+    FwrFreeModuleMap{dev_idx: i32},
+    PriGetDeviceInfo{dev_idx: i32, slot_id: i32},
+    PriDecodeOperationMode{dev_idx: i32, slot_id: i32, oper_mode_idx: i32},
+    PriGetOperationMode{dev_idx: i32, slot_id: i32},
+    PriSetOperationMode{dev_idx: i32, slot_id: i32, oper_mode_idx: i32},
+    PriDecodeTriggerSource{dev_idx: i32, slot_id: i32, trg_src_idx: i32},
+    PriGetTriggerSource{dev_idx: i32, slot_id: i32},
+    PriSetTriggerSource{dev_idx: i32, slot_id: i32, trg_src_idx: i32},
+    PriGetTriggerLevelLimits{dev_idx: i32, slot_id: i32},
+    PriGetTriggerLevel{dev_idx: i32, slot_id: i32},
+    PriSetTriggerLevel{dev_idx: i32, slot_id: i32, trg_lvl: i32},
+    PriGetFrequencyLimits{dev_idx: i32, slot_id: i32},
+    PriGetFrequency{dev_idx: i32, slot_id: i32},
+    PriSetFrequency{dev_idx: i32, slot_id: i32, frequency: i32},
+    PriGetGatingLimits{dev_idx: i32, slot_id: i32},
+    PriGetGatingData{dev_idx: i32, slot_id: i32},
+    PriSetGatingData{dev_idx: i32, slot_id: i32, on_time: i32, off_time_factor: i32},
+    PriGetGatingEnabled{dev_idx: i32, slot_id: i32},
+    PriSetGatingEnabled{dev_idx: i32, slot_id: i32, gating_enabled: bool},
+    PriGetGateHighImpedance{dev_idx: i32, slot_id: i32},
+    PriSetGateHighImpedance{dev_idx: i32, slot_id: i32, high_impedance: bool},
+    PriDecodeWavelength{dev_idx: i32, slot_id: i32, wl_idx: i32},
+    PriGetWavelengthIdx{dev_idx: i32, slot_id: i32},
+    PriSetWavelengthIdx{dev_idx: i32, slot_id: i32, wl_idx: i32},
+    PriGetIntensity{dev_idx: i32, slot_id: i32, wl_idx: i32},
+    PriSetIntensity{dev_idx: i32, slot_id: i32, wl_idx: i32, w_intensity: u16},
+}
+
+macro_rules! return_type_of {
+    LibDecodeError{ err_code: i32}                                                   => String,
+    LibGetVersion                                                                    => String,
+    LibGetLibUSBVersion                                                              => String,
+    LibIsRunningOnWine                                                               => bool,
+    UsbOpenDevice{dev_idx: i32}                                                      => UsbDevice,
+    UsbOpenGetSerNumAndClose{dev_idx: i32}                                           => UsbDevice,
+    UsbGetStrDescriptor{dev_idx: i32}                                                => String,
+    UsbGetStrDescrByIdx{dev_idx: i32, descr_idx: i32}                                => String,
+    UsbIsOpenDevice{dev_idx: i32}                                                    => bool,
+    UsbCloseDevice{dev_idx: i32}                                                     => (),
+    FwrDecodeErrPhaseName{err_phase: i32}                                            => String,
+    FwrGetVersion{dev_idx: i32}                                                      => String,
+    FwrGetLastError{dev_idx: i32}                                                    => FwrError,
+    FwrGetWorkingMode{dev_idx: i32}                                                  => i32,
+    FwrSetWorkingMode{dev_idx: i32, mode: i32}                                       => (),
+    FwrRollBackToPermanentValues{dev_idx: i32}                                       => (),
+    FwrStoreAsPermanentValues{dev_idx: i32}                                          => (),
+    FwrGetModuleMap{dev_idx: i32, perform_restart: bool}                             => i32,
+    FwrGetModuleInfoByMapIdx{dev_idx: i32, map_idx: i32}                             => ModuleInfo,
+    FwrGetUptimeInfoByMapIdx{dev_idx: i32, map_idx: i32}                             => UptimeInfo,
+    FwrCreateSupportRequestText{dev_idx: i32, fwr_req: FwrRequestSupport}            => String,
+    FwrFreeModuleMap{dev_idx: i32}                                                   => (),
+    PriGetDeviceInfo{dev_idx: i32, slot_id: i32}                                     => PrimaDevInfo,
+    PriDecodeOperationMode{dev_idx: i32, slot_id: i32, oper_mode_idx: i32}           => PrimaModeInfo,
+    PriGetOperationMode{dev_idx: i32, slot_id: i32}                                  => i32,
+    PriSetOperationMode{dev_idx: i32, slot_id: i32, oper_mode_idx: i32}              => (),
+    PriDecodeTriggerSource{dev_idx: i32, slot_id: i32, trg_src_idx: i32}             => TriggerInfo,
+    PriGetTriggerSource{dev_idx: i32, slot_id: i32}                                  => i32,
+    PriSetTriggerSource{dev_idx: i32, slot_id: i32, trg_src_idx: i32}                => (),
+    PriGetTriggerLevelLimits{dev_idx: i32, slot_id: i32}                             => TriggerLevelInfo,
+    PriGetTriggerLevel{dev_idx: i32, slot_id: i32}                                   => i32,
+    PriSetTriggerLevel{dev_idx: i32, slot_id: i32, trg_lvl: i32}                     => (),
+    PriGetFrequencyLimits{dev_idx: i32, slot_id: i32}                                => (i32, i32),
+    PriGetFrequency{dev_idx: i32, slot_id: i32}                                      => i32,
+    PriSetFrequency{dev_idx: i32, slot_id: i32, frequency: i32}                      => (),
+    PriGetGatingLimits{dev_idx: i32, slot_id: i32}                                   => PrimaGatingInfo,
+    PriGetGatingData{dev_idx: i32, slot_id: i32}                                     => (i32, i32),
+    PriSetGatingData{dev_idx: i32, slot_id: i32, on_time: i32, off_time_factor: i32} => (),
+    PriGetGatingEnabled{dev_idx: i32, slot_id: i32}                                  => bool,
+    PriSetGatingEnabled{dev_idx: i32, slot_id: i32, gating_enabled: bool}            => (),
+    PriGetGateHighImpedance{dev_idx: i32, slot_id: i32}                              => bool,
+    PriSetGateHighImpedance{dev_idx: i32, slot_id: i32, high_impedance: bool}        => (),
+    PriDecodeWavelength{dev_idx: i32, slot_id: i32, wl_idx: i32}                     => i32,
+    PriGetWavelengthIdx{dev_idx: i32, slot_id: i32}                                  => i32,
+    PriSetWavelengthIdx{dev_idx: i32, slot_id: i32, wl_idx: i32}                     => (),
+    PriGetIntensity{dev_idx: i32, slot_id: i32, wl_idx: i32}                         => u16,
+    PriSetIntensity{dev_idx: i32, slot_id: i32, wl_idx: i32, w_intensity: u16}       => (),
+}
