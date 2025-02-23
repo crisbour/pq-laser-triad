@@ -1,0 +1,23 @@
+[package]
+name = "sepia2-client-jll"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+jlrs = { version = "0.21.1", features = ["ccall", "jlrs-derive"] }
+lazy_static = "1.5.0"
+oneshot = "0.1.11"
+sepia2 = { version = "0.1.0", path = "../sepia2" }
+sepia2-grpc = { version = "0.2.0", path = "../sepia2-grpc" }
+tokio = { version = "1.43.0", features = ["sync"] }
+
+[features]
+julia-1-6 = ["jlrs/julia-1-6"]
+julia-1-7 = ["jlrs/julia-1-7"]
+julia-1-8 = ["jlrs/julia-1-8"]
+julia-1-9 = ["jlrs/julia-1-9"]
+julia-1-10 = ["jlrs/julia-1-10"]
+julia-1-11 = ["jlrs/julia-1-11"]
+
+[lib]
+crate-type = ["cdylib"]
