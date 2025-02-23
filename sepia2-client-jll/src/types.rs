@@ -13,65 +13,61 @@ use jlrs::{
 };
 
 macro_rules! typeof_member {
-    (sepia2::types::UsbDevice, product_model) => { JuliaString };
-    (sepia2::types::UsbDevice, serial_number) => { JuliaString };
-    (sepia2::types::FwrError, err_code) => { i32 };
-    (sepia2::types::FwrError, phase) => { i32 };
-    (sepia2::types::FwrError, location) => { i32 };
-    (sepia2::types::FwrError, slot) => { i32 };
-    (sepia2::types::FwrError, condition) => { JuliaString };
-    (sepia2::types::ModuleInfo, slot_id) => { i32 };
-    (sepia2::types::ModuleInfo, is_primary) => { Bool }; // Convert bool to jlrs::Bool
-    (sepia2::types::ModuleInfo, is_back_plane) => { Bool }; // Convert bool to jlrs::Bool
-    (sepia2::types::ModuleInfo, has_utc) => { Bool }; // Convert bool to jlrs::Bool
-    (sepia2::types::UptimeInfo, main_pwr_up) => { u32 };
-    (sepia2::types::UptimeInfo, active_pwr_up) => { u32 };
-    (sepia2::types::UptimeInfo, scaled_pwr_up) => { u32 };
-    (sepia2::types::FwrRequestSupport, preamble) => { JuliaString };
-    (sepia2::types::FwrRequestSupport, calling_sw) => { JuliaString };
-    (sepia2::types::FwrRequestSupport, options) => { i32 };
-    (sepia2::types::FwrRequestSupport, buffer) => { i32 };
-    (sepia2::types::PrimaDevInfo, device_id) => { JuliaString };
-    (sepia2::types::PrimaDevInfo, device_type) => { JuliaString };
-    (sepia2::types::PrimaDevInfo, fw_version) => { JuliaString };
-    (sepia2::types::PrimaDevInfo, wl_count) => { i32 };
-    (sepia2::types::PrimaModeInfo, oper_mode_idx) => { i32 };
-    (sepia2::types::PrimaModeInfo, oper_mode) => { JuliaString };
-    (sepia2::types::TriggerInfo, trg_src_idx) => { i32 };
-    (sepia2::types::TriggerInfo, trg_src) => { JuliaString };
-    (sepia2::types::TriggerInfo, frequency_enabled) => { Bool }; // Convert bool to jlrs::Bool
-    (sepia2::types::TriggerInfo, trig_level_enabled) => { Bool }; // Convert bool to jlrs::Bool
-    (sepia2::types::TriggerLevelInfo, trg_min_lvl) => { i32 };
-    (sepia2::types::TriggerLevelInfo, trg_max_lvl) => { i32 };
-    (sepia2::types::TriggerLevelInfo, trg_lvl_res) => { i32 };
-    (sepia2::types::PrimaGatingInfo, min_on_time) => { i32 };
-    (sepia2::types::PrimaGatingInfo, max_on_time) => { i32 };
-    (sepia2::types::PrimaGatingInfo, min_off_time_factor) => { i32 };
-    (sepia2::types::PrimaGatingInfo, max_off_time_factor) => { i32 };
+    (UsbDevice, product_model)             => { String };
+    (UsbDevice, serial_number)             => { String };
+    (FwrError, err_code)                   => { i32 };
+    (FwrError, phase)                      => { i32 };
+    (FwrError, location)                   => { i32 };
+    (FwrError, slot)                       => { i32 };
+    (FwrError, condition)                  => { String };
+    (ModuleInfo, slot_id)                  => { i32 };
+    (ModuleInfo, is_primary)               => { bool }; // Convert bool to jlrs::Bool
+    (ModuleInfo, is_back_plane)            => { bool }; // Convert bool to jlrs::Bool
+    (ModuleInfo, has_utc)                  => { bool }; // Convert bool to jlrs::Bool
+    (UptimeInfo, main_pwr_up)              => { u32 };
+    (UptimeInfo, active_pwr_up)            => { u32 };
+    (UptimeInfo, scaled_pwr_up)            => { u32 };
+    (FwrRequestSupport, preamble)          => { String };
+    (FwrRequestSupport, calling_sw)        => { String };
+    (FwrRequestSupport, options)           => { i32 };
+    (FwrRequestSupport, buffer)            => { i32 };
+    (PrimaDevInfo, device_id)              => { String };
+    (PrimaDevInfo, device_type)            => { String };
+    (PrimaDevInfo, fw_version)             => { String };
+    (PrimaDevInfo, wl_count)               => { i32 };
+    (PrimaModeInfo, oper_mode_idx)         => { i32 };
+    (PrimaModeInfo, oper_mode)             => { String };
+    (TriggerInfo, trg_src_idx)             => { i32 };
+    (TriggerInfo, trg_src)                 => { String };
+    (TriggerInfo, frequency_enabled)       => { bool }; // Convert bool to jlrs::Bool
+    (TriggerInfo, trig_level_enabled)      => { bool }; // Convert bool to jlrs::Bool
+    (TriggerLevelInfo, trg_min_lvl)        => { i32 };
+    (TriggerLevelInfo, trg_max_lvl)        => { i32 };
+    (TriggerLevelInfo, trg_lvl_res)        => { i32 };
+    (PrimaGatingInfo, min_on_time)         => { i32 };
+    (PrimaGatingInfo, max_on_time)         => { i32 };
+    (PrimaGatingInfo, min_off_time_factor) => { i32 };
+    (PrimaGatingInfo, max_off_time_factor) => { i32 };
 }
+
 
 macro_rules! julia_type_equivalent {
     ($type:ident, $($field:ident),*) => {
-        struct $type {
+        #[repr(C)]
+        #[derive(Clone, Debug, IsBits, ConstructType)]
+        #[jlrs(
+            julia_type = stringify!(Main.Sepia2Client.$type),
+        )]
+        pub struct $type {
             // TODO: Fill in all fields from sepia2::types::$sepia2_type
             // apart from bool, which becomes Bool
-            $( $field: TypedValueRet<typeof_member!(sepia2::types::$type, $field)>, )*
+            $( $field: typeof_member!($type, $field), )*
         }
 
         unsafe impl Send for $type {}
         unsafe impl Sync for $type {}
 
-        unsafe impl ForeignType for $type {
-            fn mark(ptls: PTls, data: &Self) -> usize {
-                // Safety: We mark all referenced managed data.
-                unsafe {
-                    let mut n_marked = 0;
-                    $( n_marked += mark_queue_obj(ptls, data.$field) as usize; )*
-                    n_marked
-                }
-            }
-        }
-
+        unsafe impl OpaqueType for OpaqueInt {}
 
         impl From<sepia2::types::$type> for $type {
             fn from(item: sepia2::types::$type) -> $type {

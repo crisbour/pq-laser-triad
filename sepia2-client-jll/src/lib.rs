@@ -2,7 +2,12 @@
 
 use jlrs::prelude::*;
 use jlrs::data::managed::value::{ValueRet, typed::{TypedValue, TypedValueRet}};
+use jlrs::data::managed::ccall_ref::{CCallRef, CCallRefRet};
 use jlrs::data::layout::{tuple::Tuple2, bool::Bool};
+use jlrs::weak_handle;
+use jlrs::data::types::construct_type::ConstructType;
+use jlrs::data::managed::value::typed::AsTyped;
+//use jlrs::data::managed::string::TypedValueRet<JuliaString>;
 use sepia2_grpc::sepia2_client::Sepia2Client;
 use std::sync::mpsc;
 use oneshot;
@@ -10,7 +15,7 @@ use lazy_static::lazy_static;
 use std::ffi::CString;
 
 mod types;
-use types::*;
+pub use types::*;
 
 // ----------------------------------------------------------------
 // Channel to request client service querries to gRPC (tonic)
@@ -132,7 +137,7 @@ macro_rules! unwrap_resp {
     ($func:ident, $resp:expr) => {
         match $resp {
             Ok(client_resp) => match client_resp {
-                ClientResp::$func(inner_resp) => Ok(inner_resp.into()),
+                ClientResp::$func(inner_resp) => Ok(inner_resp),
                 other_resp => Err(format!("Unexpected response: {:?}", other_resp).into()),
             },
             Err(e) => Err(format!("RecvError: {:?}", e)),
@@ -142,7 +147,7 @@ macro_rules! unwrap_resp {
 
 macro_rules! julia_result {
     ($expr:expr) => {
-        match expr {
+        match $expr {
             Ok(ret) => Ok(ret),
             Err(err_msg) => {
                 match weak_handle!() {
@@ -161,11 +166,41 @@ macro_rules! julia_result {
     };
 }
 
+macro_rules! into_julia {
+    ($val:expr) => {
+        Ok($val.into())
+    };
+}
+
+macro_rules! into_julia_string {
+    ($val:expr) => {
+        match weak_handle!() {
+            Ok(handle) => {
+                let str_val = JuliaString::new(handle, $val);
+                Ok(TypedValue::new(handle, str_val).leak())
+            }
+            _ => panic!("not called from Julia"),
+        }
+    };
+}
+
+macro_rules! into_julia_tuple {
+    ($val:expr) => {
+        match weak_handle!() {
+            Ok(handle) => {
+                let tuple = Tuple2<i32,i32>::construct_type(handle, $val);
+                Ok(TypedValue::new(handle, tuple).leak())
+            }
+            _ => panic!("not called from Julia"),
+        }
+    };
+}
+
 // ----------------------------------------------------------------
 // Client thread channel command received query the service
 // ----------------------------------------------------------------
 
-async fn client_service(addr: &str) -> Result<(), ValueRet> {
+async fn client_service(addr: &str) -> Result<(), Box<dyn std::error::Error>> {
 
     /// Wait for MPSC to receive instructions about adress to connect to
     // TODO: Read MPSC channel for ClientCommand::Connect
@@ -244,23 +279,23 @@ fn Spawn_Client(addr: JuliaString) {
 
 // TODO: Replace all this with a macro_rule defined for all functions
 
-fn LIB_DecodeError( err_code: i32,) -> Result<TypedValueRet<JuliaString>, ValueRet> {
-    let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::LibDecodeError),ValueRet>>
-    CLIENT_SERVICE_SENDER.send((ClientReq::LibDecodeError{ err_code }, resp_sender));
-    julia_result!(unwrap_resp!(LibDecodeError, resp_receiver.recv()))
-}
+//fn LIB_DecodeError( err_code: i32,) -> Result<TypedValueRet<JuliaString>, ValueRet> {
+//    let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::LibDecodeError),ValueRet>>
+//    CLIENT_SERVICE_SENDER.send((ClientReq::LibDecodeError{ err_code }, resp_sender));
+//    julia_result!(unwrap_resp!(LibDecodeError, resp_receiver.recv()))
+//}
 
-fn LIB_GetVersion() -> Result<TypedValueRet<JuliaString>, ValueRet> {
-    let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::LibGetVersion),ValueRet>>
-    CLIENT_SERVICE_SENDER.send((ClientReq::LibGetVersion, resp_sender));
-    julia_result!(unwrap_resp!(LibGetVersion, resp_receiver.recv()))
-}
+//fn LIB_GetVersion() -> Result<TypedValueRet<JuliaString>, ValueRet> {
+//    let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::LibGetVersion),ValueRet>>
+//    CLIENT_SERVICE_SENDER.send((ClientReq::LibGetVersion, resp_sender));
+//    julia_result!(unwrap_resp!(LibGetVersion, resp_receiver.recv()))
+//}
 
-fn LIB_GetLibUSBVersion() -> Result<TypedValueRet<JuliaString>, ValueRet> {
-    let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::LibGetLibUSBVersion),ValueRet>>
-    CLIENT_SERVICE_SENDER.send((ClientReq::LibGetLibUSBVersion, resp_sender));
-    julia_result!(unwrap_resp!(LibGetLibUSBVersion, resp_receiver.recv()))
-}
+//fn LIB_GetLibUSBVersion() -> Result<TypedValueRet<JuliaString>, ValueRet> {
+//    let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::LibGetLibUSBVersion),ValueRet>>
+//    CLIENT_SERVICE_SENDER.send((ClientReq::LibGetLibUSBVersion, resp_sender));
+//    julia_result!(unwrap_resp!(LibGetLibUSBVersion, resp_receiver.recv()))
+//}
 
 fn LIB_IsRunningOnWine() -> Result<bool, ValueRet> {
     let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::LibIsRunningOnWine),ValueRet>>
@@ -270,33 +305,33 @@ fn LIB_IsRunningOnWine() -> Result<bool, ValueRet> {
 
 fn USB_OpenDevice(
     dev_idx: i32,
-) -> Result<TypedValueRet<UsbDevice>, ValueRet> {
+) -> Result<UsbDevice, ValueRet> {
     let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::UsbOpenDevice),ValueRet>>
     CLIENT_SERVICE_SENDER.send((ClientReq::UsbOpenDevice{ dev_idx }, resp_sender));
-    julia_result!(unwrap_resp!(UsbOpenDevice, resp_receiver.recv()))
+    into_julia!(julia_result!(unwrap_resp!(UsbOpenDevice, resp_receiver.recv()))?)
 }
 fn USB_OpenGetSerNumAndClose(
     dev_idx: i32,
-) -> Result<TypedValueRet<UsbDevice>, ValueRet> {
+) -> Result<UsbDevice, ValueRet> {
     let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::UsbOpenGetSerNumAndClose),ValueRet>>
     CLIENT_SERVICE_SENDER.send((ClientReq::UsbOpenGetSerNumAndClose{ dev_idx }, resp_sender));
-    julia_result!(unwrap_resp!(UsbOpenGetSerNumAndClose, resp_receiver.recv()))
-}
-fn USB_GetStrDescriptor(
-    dev_idx: i32,
-) -> Result<TypedValueRet<JuliaString>, ValueRet> {
-    let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::UsbGetStrDescriptor),ValueRet>>
-    CLIENT_SERVICE_SENDER.send((ClientReq::UsbGetStrDescriptor{ dev_idx, }, resp_sender));
-    julia_result!(unwrap_resp!(UsbGetStrDescriptor, resp_receiver.recv()))
-}
-fn USB_GetStrDescrByIdx(
-    dev_idx: i32,
-    descr_idx: i32,
-) -> Result<TypedValueRet<JuliaString>, ValueRet> {
-    let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::UsbGetStrDescrByIdx),ValueRet>>
-    CLIENT_SERVICE_SENDER.send((ClientReq::UsbGetStrDescrByIdx{ dev_idx, descr_idx, }, resp_sender));
-    julia_result!(unwrap_resp!(UsbGetStrDescrByIdx, resp_receiver.recv()))
-}
+    into_julia!(julia_result!(unwrap_resp!(UsbOpenGetSerNumAndClose, resp_receiver.recv()))?)
+pub }
+//fn USB_GetStrDescriptor(
+//    dev_idx: i32,
+//) -> Result<TypedValueRet<JuliaString>, ValueRet> {
+//    let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::UsbGetStrDescriptor),ValueRet>>
+//    CLIENT_SERVICE_SENDER.send((ClientReq::UsbGetStrDescriptor{ dev_idx, }, resp_sender));
+//    julia_result!(unwrap_resp!(UsbGetStrDescriptor, resp_receiver.recv()))
+//}
+//fn USB_GetStrDescrByIdx(
+//    dev_idx: i32,
+//    descr_idx: i32,
+//) -> Result<TypedValueRet<JuliaString>, ValueRet> {
+//    let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::UsbGetStrDescrByIdx),ValueRet>>
+//    CLIENT_SERVICE_SENDER.send((ClientReq::UsbGetStrDescrByIdx{ dev_idx, descr_idx, }, resp_sender));
+//    julia_result!(unwrap_resp!(UsbGetStrDescrByIdx, resp_receiver.recv()))
+//}
 fn USB_IsOpenDevice(
     dev_idx: i32,
 ) -> Result<bool, ValueRet> {
@@ -311,26 +346,26 @@ fn USB_CloseDevice(
     CLIENT_SERVICE_SENDER.send((ClientReq::UsbCloseDevice{ dev_idx, }, resp_sender));
     julia_result!(unwrap_resp!(UsbCloseDevice, resp_receiver.recv()))
 }
-fn FWR_DecodeErrPhaseName(
-    err_phase: i32,
-) -> Result<TypedValueRet<JuliaString>, ValueRet> {
-    let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::FwrDecodeErrPhaseName),ValueRet>>
-    CLIENT_SERVICE_SENDER.send((ClientReq::FwrDecodeErrPhaseName{ err_phase, }, resp_sender));
-    julia_result!(unwrap_resp!(FwrDecodeErrPhaseName, resp_receiver.recv()))
-}
-fn FWR_GetVersion(
-    dev_idx: i32,
-) -> Result<TypedValueRet<JuliaString>, ValueRet> {
-    let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::FwrGetVersion),ValueRet>>
-    CLIENT_SERVICE_SENDER.send((ClientReq::FwrGetVersion{ dev_idx, }, resp_sender));
-    julia_result!(unwrap_resp!(FwrGetVersion, resp_receiver.recv()))
-}
+//fn FWR_DecodeErrPhaseName(
+//    err_phase: i32,
+//) -> Result<TypedValueRet<JuliaString>, ValueRet> {
+//    let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::FwrDecodeErrPhaseName),ValueRet>>
+//    CLIENT_SERVICE_SENDER.send((ClientReq::FwrDecodeErrPhaseName{ err_phase, }, resp_sender));
+//    julia_result!(unwrap_resp!(FwrDecodeErrPhaseName, resp_receiver.recv()))
+//}
+//fn FWR_GetVersion(
+//    dev_idx: i32,
+//) -> Result<TypedValueRet<JuliaString>, ValueRet> {
+//    let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::FwrGetVersion),ValueRet>>
+//    CLIENT_SERVICE_SENDER.send((ClientReq::FwrGetVersion{ dev_idx, }, resp_sender));
+//    into_julia_string!(julia_result!(unwrap_resp!(FwrGetVersion, resp_receiver.recv()))?)
+//}
 fn FWR_GetLastError(
     dev_idx: i32,
-) -> Result<TypedValueRet<FwrError>, ValueRet> {
+) -> Result<FwrError, ValueRet> {
     let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::FwrGetLastError),ValueRet>>
     CLIENT_SERVICE_SENDER.send((ClientReq::FwrGetLastError{ dev_idx, }, resp_sender));
-    julia_result!(unwrap_resp!(FwrGetLastError, resp_receiver.recv()))
+    into_julia!(julia_result!(unwrap_resp!(FwrGetLastError, resp_receiver.recv()))?)
 }
 fn FWR_GetWorkingMode(
     dev_idx: i32,
@@ -372,27 +407,27 @@ fn FWR_GetModuleMap(
 fn FWR_GetModuleInfoByMapIdx(
     dev_idx: i32,
     map_idx: i32,
-) -> Result<TypedValueRet<ModuleInfo>, ValueRet> {
+) -> Result<ModuleInfo, ValueRet> {
     let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::FwrGetModuleInfoByMapIdx),ValueRet>>
     CLIENT_SERVICE_SENDER.send((ClientReq::FwrGetModuleInfoByMapIdx{ dev_idx, map_idx, }, resp_sender));
-    julia_result!(unwrap_resp!(FwrGetModuleInfoByMapIdx, resp_receiver.recv()))
+    into_julia!(julia_result!(unwrap_resp!(FwrGetModuleInfoByMapIdx, resp_receiver.recv()))?)
 }
 fn FWR_GetUptimeInfoByMapIdx(
     dev_idx: i32,
     map_idx: i32,
-) -> Result<TypedValueRet<UptimeInfo>, ValueRet> {
+) -> Result<UptimeInfo, ValueRet> {
     let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::FwrGetUptimeInfoByMapIdx),ValueRet>>
     CLIENT_SERVICE_SENDER.send((ClientReq::FwrGetUptimeInfoByMapIdx{ dev_idx, map_idx, }, resp_sender));
-    julia_result!(unwrap_resp!(FwrGetUptimeInfoByMapIdx, resp_receiver.recv()))
+    into_julia!(julia_result!(unwrap_resp!(FwrGetUptimeInfoByMapIdx, resp_receiver.recv()))?)
 }
-fn FWR_CreateSupportRequestText(
-    dev_idx: i32,
-    fwr_req: FwrRequestSupport,
-) -> Result<TypedValueRet<JuliaString>, ValueRet> {
-    let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::FwrCreateSupportRequestText),ValueRet>>
-    CLIENT_SERVICE_SENDER.send((ClientReq::FwrCreateSupportRequestText{ dev_idx, fwr_req, }, resp_sender));
-    julia_result!(unwrap_resp!(FwrCreateSupportRequestText, resp_receiver.recv()))
-}
+//fn FWR_CreateSupportRequestText(
+//    dev_idx: i32,
+//    fwr_req: FwrRequestSupport,
+//) -> Result<TypedValueRet<JuliaString>, ValueRet> {
+//    let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::FwrCreateSupportRequestText),ValueRet>>
+//    CLIENT_SERVICE_SENDER.send((ClientReq::FwrCreateSupportRequestText{ dev_idx, fwr_req, }, resp_sender));
+//    into_julia_string!(julia_result!(unwrap_resp!(FwrCreateSupportRequestText, resp_receiver.recv()))?)
+//}
 fn FWR_FreeModuleMap(
     dev_idx: i32,
 ) -> Result<(), ValueRet> {
@@ -404,19 +439,19 @@ fn FWR_FreeModuleMap(
 fn PRI_GetDeviceInfo(
     dev_idx: i32,
     slot_id: i32,
-) -> Result<TypedValueRet<PrimaDevInfo>, ValueRet> {
+) -> Result<PrimaDevInfo, ValueRet> {
     let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::PriGetDeviceInfo),ValueRet>>
     CLIENT_SERVICE_SENDER.send((ClientReq::PriGetDeviceInfo{ dev_idx, slot_id, }, resp_sender));
-    julia_result!(unwrap_resp!(PriGetDeviceInfo, resp_receiver.recv()))
+    into_julia!(julia_result!(unwrap_resp!(PriGetDeviceInfo, resp_receiver.recv()))?)
 }
 fn PRI_DecodeOperationMode(
     dev_idx: i32,
     slot_id: i32,
     oper_mode_idx: i32,
-) -> Result<TypedValueRet<PrimaModeInfo>, ValueRet> {
+) -> Result<PrimaModeInfo, ValueRet> {
     let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::PriDecodeOperationMode),ValueRet>>
     CLIENT_SERVICE_SENDER.send((ClientReq::PriDecodeOperationMode{ dev_idx, slot_id, oper_mode_idx, }, resp_sender));
-    julia_result!(unwrap_resp!(PriDecodeOperationMode, resp_receiver.recv()))
+    into_julia!(julia_result!(unwrap_resp!(PriDecodeOperationMode, resp_receiver.recv()))?)
 }
 fn PRI_GetOperationMode(
     dev_idx: i32,
@@ -439,10 +474,10 @@ fn PRI_DecodeTriggerSource(
     dev_idx: i32,
     slot_id: i32,
     trg_src_idx: i32,
-) -> Result<TypedValueRet<TriggerInfo>, ValueRet> {
+) -> Result<TriggerInfo, ValueRet> {
     let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::PriDecodeTriggerSource),ValueRet>>
     CLIENT_SERVICE_SENDER.send((ClientReq::PriDecodeTriggerSource{ dev_idx, slot_id, trg_src_idx, }, resp_sender));
-    julia_result!(unwrap_resp!(PriDecodeTriggerSource, resp_receiver.recv()))
+    into_julia!(julia_result!(unwrap_resp!(PriDecodeTriggerSource, resp_receiver.recv()))?)
 }
 fn PRI_GetTriggerSource(
     dev_idx: i32,
@@ -464,10 +499,10 @@ fn PRI_SetTriggerSource(
 fn PRI_GetTriggerLevelLimits(
     dev_idx: i32,
     slot_id: i32,
-) -> Result<TypedValueRet<TriggerLevelInfo>, ValueRet> {
+) -> Result<TriggerLevelInfo, ValueRet> {
     let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::PriGetTriggerLevelLimits),ValueRet>>
     CLIENT_SERVICE_SENDER.send((ClientReq::PriGetTriggerLevelLimits{ dev_idx, slot_id, }, resp_sender));
-    julia_result!(unwrap_resp!(PriGetTriggerLevelLimits, resp_receiver.recv()))
+    into_julia!(julia_result!(unwrap_resp!(PriGetTriggerLevelLimits, resp_receiver.recv()))?)
 }
 fn PRI_GetTriggerLevel(
     dev_idx: i32,
@@ -492,7 +527,7 @@ fn PRI_GetFrequencyLimits(
 ) -> Result<TypedValueRet<Tuple2<i32, i32>>, ValueRet> {
     let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::PriGetFrequencyLimits),ValueRet>>
     CLIENT_SERVICE_SENDER.send((ClientReq::PriGetFrequencyLimits{ dev_idx, slot_id, }, resp_sender));
-    julia_result!(unwrap_resp!(PriGetFrequencyLimits, resp_receiver.recv()))
+    into_julia_tuple!(julia_result!(unwrap_resp!(PriGetFrequencyLimits, resp_receiver.recv()))?)
 }
 fn PRI_GetFrequency(
     dev_idx: i32,
@@ -514,10 +549,10 @@ fn PRI_SetFrequency(
 fn PRI_GetGatingLimits(
     dev_idx: i32,
     slot_id: i32,
-) -> Result<TypedValueRet<PrimaGatingInfo>, ValueRet> {
+) -> Result<PrimaGatingInfo, ValueRet> {
     let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::PriGetGatingLimits),ValueRet>>
     CLIENT_SERVICE_SENDER.send((ClientReq::PriGetGatingLimits{ dev_idx, slot_id, }, resp_sender));
-    julia_result!(unwrap_resp!(PriGetGatingLimits, resp_receiver.recv()))
+    into_julia!(julia_result!(unwrap_resp!(PriGetGatingLimits, resp_receiver.recv()))?)
 }
 fn PRI_GetGatingData(
     dev_idx: i32,
@@ -525,7 +560,7 @@ fn PRI_GetGatingData(
 ) -> Result<TypedValueRet<Tuple2<i32, i32>>, ValueRet> {
     let (resp_sender, resp_receiver) = oneshot::channel(); // oneshot::Channel<Result<return_type_of!(ClientReq::PriGetGatingData),ValueRet>>
     CLIENT_SERVICE_SENDER.send((ClientReq::PriGetGatingData{ dev_idx, slot_id, }, resp_sender));
-    julia_result!(unwrap_resp!(PriGetGatingData, resp_receiver.recv()))
+    into_julia_tuple!(julia_result!(unwrap_resp!(PriGetGatingData, resp_receiver.recv()))?)
 }
 fn PRI_SetGatingData(
     dev_idx: i32,
@@ -632,183 +667,55 @@ julia_module! {
     struct PrimaGatingInfo;
 
     fn Spawn_Client(addr: JuliaString) ;
-    fn LIB_DecodeError( err_code: i32,) -> Result<TypedValueRet<JuliaString>, ValueRet> ;
-    fn LIB_GetVersion() -> Result<TypedValueRet<JuliaString>, ValueRet> ;
-    fn LIB_GetLibUSBVersion() -> Result<TypedValueRet<JuliaString>, ValueRet> ;
-    fn LIB_IsRunningOnWine() -> Result<bool, ValueRet> ;
-    fn USB_OpenDevice(
-        dev_idx: i32,
-    ) -> Result<UsbDevice, ValueRet> ;
-    fn USB_OpenGetSerNumAndClose(
-        dev_idx: i32,
-    ) -> Result<UsbDevice, ValueRet> ;
-    fn USB_GetStrDescriptor(
-        dev_idx: i32,
-    ) -> Result<TypedValueRet<JuliaString>, ValueRet> ;
-    fn USB_GetStrDescrByIdx(
-        dev_idx: i32,
-        descr_idx: i32,
-    ) -> Result<TypedValueRet<JuliaString>, ValueRet> ;
-    fn USB_IsOpenDevice(
-        dev_idx: i32,
-    ) -> Result<bool, ValueRet> ;
-    fn USB_CloseDevice(
-        dev_idx: i32,
-    ) -> Result<(), ValueRet> ;
-    fn FWR_DecodeErrPhaseName(
-        err_phase: i32,
-    ) -> Result<TypedValueRet<JuliaString>, ValueRet> ;
-    fn FWR_GetVersion(
-        dev_idx: i32,
-    ) -> Result<TypedValueRet<JuliaString>, ValueRet> ;
-    fn FWR_GetLastError(
-        dev_idx: i32,
-    ) -> Result<TypedValueRet<FwrError>, ValueRet> ;
-    fn FWR_GetWorkingMode(
-        dev_idx: i32,
-    ) -> Result<i32, ValueRet> ;
-    fn FWR_SetWorkingMode(
-        dev_idx: i32,
-        mode: i32,
-    ) -> Result<(), ValueRet> ;
-    fn FWR_RollBackToPermanentValues(
-        dev_idx: i32,
-    ) -> Result<(), ValueRet> ;
-    fn FWR_StoreAsPermanentValues(
-        dev_idx: i32,
-    ) -> Result<(), ValueRet> ;
-    fn FWR_GetModuleMap(
-        dev_idx: i32,
-        perform_restart: Bool,
-    ) -> Result<i32, ValueRet> ;
-    fn FWR_GetModuleInfoByMapIdx(
-        dev_idx: i32,
-        map_idx: i32,
-    ) -> Result<TypedValueRet<ModuleInfo>, ValueRet> ;
-    fn FWR_GetUptimeInfoByMapIdx(
-        dev_idx: i32,
-        map_idx: i32,
-    ) -> Result<TypedValueRet<UptimeInfo>, ValueRet> ;
-    fn FWR_CreateSupportRequestText(
-        dev_idx: i32,
-        fwr_req: FwrRequestSupport,
-    ) -> Result<TypedValueRet<JuliaString>, ValueRet> ;
-    fn FWR_FreeModuleMap(
-        dev_idx: i32,
-    ) -> Result<(), ValueRet> ;
-    fn PRI_GetDeviceInfo(
-        dev_idx: i32,
-        slot_id: i32,
-    ) -> Result<TypedValueRet<PrimaDevInfo>, ValueRet> ;
-    fn PRI_DecodeOperationMode(
-        dev_idx: i32,
-        slot_id: i32,
-        oper_mode_idx: i32,
-    ) -> Result<TypedValueRet<PrimaModeInfo>, ValueRet> ;
-    fn PRI_GetOperationMode(
-        dev_idx: i32,
-        slot_id: i32,
-    ) -> Result<i32, ValueRet> ;
-    fn PRI_SetOperationMode(
-        dev_idx: i32,
-        slot_id: i32,
-        oper_mode_idx: i32,
-    ) -> Result<(), ValueRet> ;
-    fn PRI_DecodeTriggerSource(
-        dev_idx: i32,
-        slot_id: i32,
-        trg_src_idx: i32,
-    ) -> Result<TypedValueRet<TriggerInfo>, ValueRet> ;
-    fn PRI_GetTriggerSource(
-        dev_idx: i32,
-        slot_id: i32,
-    ) -> Result<i32, ValueRet> ;
-    fn PRI_SetTriggerSource(
-        dev_idx: i32,
-        slot_id: i32,
-        trg_src_idx: i32,
-    ) -> Result<(), ValueRet> ;
-    fn PRI_GetTriggerLevelLimits(
-        dev_idx: i32,
-        slot_id: i32,
-    ) -> Result<TypedValueRet<TriggerLevelInfo>, ValueRet> ;
-    fn PRI_GetTriggerLevel(
-        dev_idx: i32,
-        slot_id: i32,
-    ) -> Result<i32, ValueRet> ;
-    fn PRI_SetTriggerLevel(
-        dev_idx: i32,
-        slot_id: i32,
-        trg_lvl: i32,
-    ) -> Result<(), ValueRet> ;
-    fn PRI_GetFrequencyLimits(
-        dev_idx: i32,
-        slot_id: i32,
-    ) -> Result<TypedValueRet<Tuple2<i32, i32>>, ValueRet> ;
-    fn PRI_GetFrequency(
-        dev_idx: i32,
-        slot_id: i32,
-    ) -> Result<i32, ValueRet> ;
-    fn PRI_SetFrequency(
-        dev_idx: i32,
-        slot_id: i32,
-        frequency: i32,
-    ) -> Result<(), ValueRet> ;
-    fn PRI_GetGatingLimits(
-        dev_idx: i32,
-        slot_id: i32,
-    ) -> Result<TypedValueRet<PrimaGatingInfo>, ValueRet> ;
-    fn PRI_GetGatingData(
-        dev_idx: i32,
-        slot_id: i32,
-    ) -> Result<TypedValueRet<Tuple2<i32, i32>>, ValueRet> ;
-    fn PRI_SetGatingData(
-        dev_idx: i32,
-        slot_id: i32,
-        on_time: i32,
-        off_time_factor: i32,
-    ) -> Result<(), ValueRet> ;
-    fn PRI_GetGatingEnabled(
-        dev_idx: i32,
-        slot_id: i32,
-    ) -> Result<bool, ValueRet> ;
-    fn PRI_SetGatingEnabled(
-        dev_idx: i32,
-        slot_id: i32,
-        gating_enabled: Bool,
-    ) -> Result<(), ValueRet> ;
-    fn PRI_GetGateHighImpedance(
-        dev_idx: i32,
-        slot_id: i32,
-    ) -> Result<bool, ValueRet> ;
-    fn PRI_SetGateHighImpedance(
-        dev_idx: i32,
-        slot_id: i32,
-        high_impedance: Bool,
-    ) -> Result<(), ValueRet> ;
-    fn PRI_DecodeWavelength(
-        dev_idx: i32,
-        slot_id: i32,
-        wl_idx: i32,
-    ) -> Result<i32, ValueRet> ;
-    fn PRI_GetWavelengthIdx(
-        dev_idx: i32,
-        slot_id: i32,
-    ) -> Result<i32, ValueRet> ;
-    fn PRI_SetWavelengthIdx(
-        dev_idx: i32,
-        slot_id: i32,
-        wl_idx: i32,
-    ) -> Result<(), ValueRet> ;
-    fn PRI_GetIntensity(
-        dev_idx: i32,
-        slot_id: i32,
-        wl_idx: i32,
-    ) -> Result<u16, ValueRet> ;
-    fn PRI_SetIntensity(
-        dev_idx: i32,
-        slot_id: i32,
-        wl_idx: i32,
-        w_intensity: u16,
-    ) -> Result<(), ValueRet> ;
+//    fn LIB_DecodeError(err_code: i32,)                        -> Result<TypedValueRet<JuliaString>, ValueRet> ;
+//    fn LIB_GetVersion()                                       -> Result<TypedValueRet<JuliaString>, ValueRet> ;
+//    fn LIB_GetLibUSBVersion()                                 -> Result<TypedValueRet<JuliaString>, ValueRet> ;
+    fn LIB_IsRunningOnWine()                                  -> Result<bool, ValueRet> ;
+    fn USB_OpenDevice(dev_idx: i32,)                          -> Result<UsbDevice, ValueRet> ;
+    fn USB_OpenGetSerNumAndClose(dev_idx: i32,)               -> Result<UsbDevice, ValueRet> ;
+//    fn USB_GetStrDescriptor(dev_idx: i32,)                    -> Result<TypedValueRet<JuliaString>, ValueRet> ;
+//    fn USB_GetStrDescrByIdx(dev_idx: i32, descr_idx: i32,)    -> Result<TypedValueRet<JuliaString>, ValueRet> ;
+    fn USB_IsOpenDevice(dev_idx: i32,)                        -> Result<bool, ValueRet> ;
+    fn USB_CloseDevice(dev_idx: i32,)                         -> Result<(), ValueRet> ;
+//    fn FWR_DecodeErrPhaseName(err_phase: i32,)                -> Result<TypedValueRet<JuliaString>, ValueRet> ;
+//    fn FWR_GetVersion(dev_idx: i32,)                          -> Result<TypedValueRet<JuliaString>, ValueRet> ;
+    fn FWR_GetLastError(dev_idx: i32,)                        -> Result<FwrError, ValueRet> ;
+    fn FWR_GetWorkingMode(dev_idx: i32,)                      -> Result<i32, ValueRet> ;
+    fn FWR_SetWorkingMode(dev_idx: i32, mode: i32,)           -> Result<(), ValueRet> ;
+    fn FWR_RollBackToPermanentValues(dev_idx: i32,)           -> Result<(), ValueRet> ;
+    fn FWR_StoreAsPermanentValues(dev_idx: i32)              -> Result<(), ValueRet> ;
+    fn FWR_GetModuleMap(dev_idx: i32, perform_restart: Bool) -> Result<i32, ValueRet> ;
+    fn FWR_GetModuleInfoByMapIdx( dev_idx: i32, map_idx: i32) -> Result<ModuleInfo, ValueRet> ;
+    fn FWR_GetUptimeInfoByMapIdx( dev_idx: i32, map_idx: i32) -> Result<UptimeInfo, ValueRet> ;
+
+//    fn FWR_CreateSupportRequestText( dev_idx: i32, fwr_req: FwrRequestSupport) -> Result<TypedValueRet<JuliaString>, ValueRet>;
+
+    fn FWR_FreeModuleMap( dev_idx: i32,)                                         -> Result<(), ValueRet> ;
+    fn PRI_GetDeviceInfo( dev_idx: i32, slot_id: i32,)                           -> Result<PrimaDevInfo, ValueRet> ;
+    fn PRI_DecodeOperationMode( dev_idx: i32, slot_id: i32, oper_mode_idx: i32,) -> Result<PrimaModeInfo, ValueRet> ;
+    fn PRI_GetOperationMode( dev_idx: i32, slot_id: i32,)                        -> Result<i32, ValueRet> ;
+    fn PRI_SetOperationMode( dev_idx: i32, slot_id: i32, oper_mode_idx: i32,)    -> Result<(), ValueRet> ;
+    fn PRI_DecodeTriggerSource( dev_idx: i32, slot_id: i32, trg_src_idx: i32,)   -> Result<TriggerInfo, ValueRet> ;
+    fn PRI_GetTriggerSource( dev_idx: i32, slot_id: i32,)                        -> Result<i32, ValueRet> ;
+    fn PRI_SetTriggerSource( dev_idx: i32, slot_id: i32, trg_src_idx: i32,)      -> Result<(), ValueRet> ;
+    fn PRI_GetTriggerLevelLimits( dev_idx: i32, slot_id: i32,)                   -> Result<TriggerLevelInfo, ValueRet> ;
+    fn PRI_GetTriggerLevel( dev_idx: i32, slot_id: i32,)                         -> Result<i32, ValueRet> ;
+    fn PRI_SetTriggerLevel( dev_idx: i32, slot_id: i32, trg_lvl: i32,)           -> Result<(), ValueRet> ;
+    fn PRI_GetFrequencyLimits( dev_idx: i32, slot_id: i32,)                      -> Result<TypedValueRet<Tuple2<i32, i32>>, ValueRet> ;
+    fn PRI_GetFrequency( dev_idx: i32, slot_id: i32,)                            -> Result<i32, ValueRet> ;
+    fn PRI_SetFrequency( dev_idx: i32, slot_id: i32, frequency: i32,)            -> Result<(), ValueRet> ;
+    fn PRI_GetGatingLimits( dev_idx: i32, slot_id: i32,)                         -> Result<PrimaGatingInfo, ValueRet> ;
+    fn PRI_GetGatingData( dev_idx: i32, slot_id: i32,)                           -> Result<TypedValueRet<Tuple2<i32, i32>>, ValueRet> ;
+    fn PRI_SetGatingData( dev_idx: i32, slot_id: i32, on_time: i32, off_time_factor: i32,) -> Result<(), ValueRet> ;
+
+    fn PRI_GetGatingEnabled( dev_idx: i32, slot_id: i32,)                           -> Result<bool, ValueRet> ;
+    fn PRI_SetGatingEnabled( dev_idx: i32, slot_id: i32, gating_enabled: Bool,)     -> Result<(), ValueRet> ;
+    fn PRI_GetGateHighImpedance( dev_idx: i32, slot_id: i32,)                       -> Result<bool, ValueRet> ;
+    fn PRI_SetGateHighImpedance( dev_idx: i32, slot_id: i32, high_impedance: Bool,) -> Result<(), ValueRet> ;
+    fn PRI_DecodeWavelength( dev_idx: i32, slot_id: i32, wl_idx: i32,)              -> Result<i32, ValueRet> ;
+    fn PRI_GetWavelengthIdx( dev_idx: i32, slot_id: i32,)                           -> Result<i32, ValueRet> ;
+    fn PRI_SetWavelengthIdx( dev_idx: i32, slot_id: i32, wl_idx: i32,)              -> Result<(), ValueRet> ;
+    fn PRI_GetIntensity( dev_idx: i32, slot_id: i32, wl_idx: i32,)                  -> Result<u16, ValueRet> ;
+
+    fn PRI_SetIntensity( dev_idx: i32, slot_id: i32, wl_idx: i32, w_intensity: u16,) -> Result<(), ValueRet> ;
 }
