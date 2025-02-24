@@ -19,25 +19,32 @@
           overlays = [ rust-overlay.overlays.default self.overlays.default ];
         };
       });
+
       # Our windows cross package set.
-      #pkgs-cross-mingw = pkgs: import pkgs.path {
-      #  crossSystem = {
-      #      config = "x86_64-w64-mingw32";
-      #    };
-      #};
+      pkgs-cross-mingw = import nixpkgs {
+        # FIXME: system should be for each supportedSystem: use flake-utils
+        system = "x86_64-linux";
+        crossSystem = {
+            config = "x86_64-w64-mingw32";
+          };
+        #overlays = [
+        #  (import (builtins.fetchTarball "https://github.com/oxalica/rust-overlay/archive/master.tar.gz"))
+        #];
+      };
 
       ## Our windows cross compiler plus
       ## the required libraries and headers.
-      #mingw_w64_cc = pkgs: (pkgs-cross-mingw pkgs).stdenv.cc;
-      #mingw_w64 = pkgs-cross-mingw.windows.mingw_w64;
-      #mingw_w64_pthreads_w_static = pkgs-cross-mingw.windows.mingw_w64_pthreads.overrideAttrs (oldAttrs: {
-      #  # TODO: Remove once / if changed successfully upstreamed.
-      #  configureFlags = (oldAttrs.configureFlags or []) ++ [
-      #    # Rustc require 'libpthread.a' when targeting 'x86_64-pc-windows-gnu'.
-      #    # Enabling this makes it work out of the box instead of failing.
-      #    "--enable-static"
-      #  ];
-      #});
+      mingw_w64_cc = pkgs-cross-mingw.stdenv.cc;
+      mingw_w64 = pkgs-cross-mingw.windows.mingw_w64;
+
+      mingw_w64_pthreads_w_static = pkgs-cross-mingw.windows.mingw_w64_pthreads.overrideAttrs (oldAttrs: {
+        # TODO: Remove once / if changed successfully upstreamed.
+        configureFlags = (oldAttrs.configureFlags or []) ++ [
+          # Rustc require 'libpthread.a' when targeting 'x86_64-pc-windows-gnu'.
+          # Enabling this makes it work out of the box instead of failing.
+          "--enable-static"
+        ];
+      });
       #wine = pkgs: pkgs.wineWowPackages.stable;
     in
     {
@@ -56,10 +63,13 @@
             };
       };
 
-      devShells = forEachSupportedSystem ({ pkgs }: {
+      devShells = forEachSupportedSystem ({ pkgs }:
+        {
         default = pkgs.mkShell {
           packages = with pkgs; [
-            #       (mingw_w64_cc pkgs)
+            #mingw_w64.i686-w64-mingw32-gcc
+            mingw_w64_cc
+            mingw_w64_pthreads_w_static
             rustToolchain
             grpc-tools # protoc
             protobuf # required for google import *.proto
