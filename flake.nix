@@ -39,11 +39,11 @@
 
       mingw_w64_pthreads_w_static = pkgs-cross-mingw.windows.mingw_w64_pthreads.overrideAttrs (oldAttrs: {
         # TODO: Remove once / if changed successfully upstreamed.
-        configureFlags = (oldAttrs.configureFlags or []) ++ [
-          # Rustc require 'libpthread.a' when targeting 'x86_64-pc-windows-gnu'.
-          # Enabling this makes it work out of the box instead of failing.
-          "--enable-static"
-        ];
+        #configureFlags = (oldAttrs.configureFlags or []) ++ [
+        #  # Rustc require 'libpthread.a' when targeting 'x86_64-pc-windows-gnu'.
+        #  # Enabling this makes it work out of the box instead of failing.
+        #  "--enable-static"
+        #];
       });
       #wine = pkgs: pkgs.wineWowPackages.stable;
     in
@@ -67,9 +67,8 @@
         {
         default = pkgs.mkShell {
           packages = with pkgs; [
-            #mingw_w64.i686-w64-mingw32-gcc
-            mingw_w64_cc
             mingw_w64_pthreads_w_static
+            mingw_w64_cc
             rustToolchain
             grpc-tools # protoc
             protobuf # required for google import *.proto
