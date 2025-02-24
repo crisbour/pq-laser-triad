@@ -3,71 +3,70 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs";
-
+    flake-utils.url = "github:numtide/flake-utils";
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
-  outputs = { self, nixpkgs, rust-overlay }:
+  outputs = { self, nixpkgs, flake-utils, rust-overlay }:
+    flake-utils.lib.eachDefaultSystem (system:
     let
-      supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
-      forEachSupportedSystem = f: nixpkgs.lib.genAttrs supportedSystems (system: f {
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [ rust-overlay.overlays.default self.overlays.default ];
-        };
-      });
-
-      # Our windows cross package set.
-      pkgs-cross-mingw = import nixpkgs {
-        # FIXME: system should be for each supportedSystem: use flake-utils
-        system = "x86_64-linux";
-        crossSystem = {
-            config = "x86_64-w64-mingw32";
-          };
-        #overlays = [
-        #  (import (builtins.fetchTarball "https://github.com/oxalica/rust-overlay/archive/master.tar.gz"))
-        #];
+      pkgs = import nixpkgs {
+        inherit system;
+        overlays = [
+            rust-overlay.overlays.default
+        ];
       };
+      toUpper = pkgs.lib.strings.toUpper;
+      cargofy = s: builtins.replaceStrings [ "-" ] [ "_" ] s;
+        #env = config: cc: {
+        #   packages = [ cc ];
+        #   "CC_${cargofy config}" = "${cc.targetPrefix}cc";
+        #   "CXX_${cargofy config}" = "${cc.targetPrefix}c++";
+        #   "CARGO_TARGET_${toUpper (cargofy config)}_LINKER" = "${cc.targetPrefix}cc";
+        # };
+       rustToolchain =
+         let
+           rust = pkgs.rust-bin;
+         in
+         if builtins.pathExists ./rust-toolchain.toml then
+           rust.fromRustupToolchainFile ./rust-toolchain.toml
+         else if builtins.pathExists ./rust-toolchain then
+           rust.fromRustupToolchainFile ./rust-toolchain
+         else
+           rust.stable.latest.default.override {
+             extensions = [ "rust-src" "rustfmt" ];
+           };
 
-      ## Our windows cross compiler plus
-      ## the required libraries and headers.
-      mingw_w64_cc = pkgs-cross-mingw.stdenv.cc;
-      mingw_w64 = pkgs-cross-mingw.windows.mingw_w64;
+        # Our windows cross package set.
+        pkgs-cross-mingw = import pkgs.path {
+          crossSystem = {
+              config = "x86_64-w64-mingw32";
+            };
+        };
 
-      mingw_w64_pthreads_w_static = pkgs-cross-mingw.windows.mingw_w64_pthreads.overrideAttrs (oldAttrs: {
-        # TODO: Remove once / if changed successfully upstreamed.
-        #configureFlags = (oldAttrs.configureFlags or []) ++ [
-        #  # Rustc require 'libpthread.a' when targeting 'x86_64-pc-windows-gnu'.
-        #  # Enabling this makes it work out of the box instead of failing.
-        #  "--enable-static"
-        #];
-      });
-      #wine = pkgs: pkgs.wineWowPackages.stable;
+        # Our windows cross compiler plus
+        # the required libraries and headers.
+        mingw_w64_cc = pkgs-cross-mingw.stdenv.cc;
+        mingw_w64 = pkgs-cross-mingw.windows.mingw_w64;
+        mingw_w64_pthreads_w_static = pkgs-cross-mingw.windows.mingw_w64_pthreads.overrideAttrs (oldAttrs: {
+          # TODO: Remove once / if changed successfully upstreamed.
+          configureFlags = (oldAttrs.configureFlags or []) ++ [
+            # Rustc require 'libpthread.a' when targeting 'x86_64-pc-windows-gnu'.
+            # Enabling this makes it work out of the box instead of failing.
+            "--enable-static"
+          ];
+        });
+
+        wine = pkgs.wineWowPackages.stable;
     in
     {
-      overlays.default = final: prev: {
-        rustToolchain =
-          let
-            rust = prev.rust-bin;
-          in
-          if builtins.pathExists ./rust-toolchain.toml then
-            rust.fromRustupToolchainFile ./rust-toolchain.toml
-          else if builtins.pathExists ./rust-toolchain then
-            rust.fromRustupToolchainFile ./rust-toolchain
-          else
-            rust.stable.latest.default.override {
-              extensions = [ "rust-src" "rustfmt" ];
-            };
-      };
-
-      devShells = forEachSupportedSystem ({ pkgs }:
+      devShells =
         {
         default = pkgs.mkShell {
           packages = with pkgs; [
-            mingw_w64_pthreads_w_static
             mingw_w64_cc
             rustToolchain
             grpc-tools # protoc
@@ -80,10 +79,23 @@
             cargo-edit
             cargo-watch
           ];
+              #++ [
+              #  # Inspired from: https://github.com/tursodatabase/libsql-c/blob/ab9dc85ab14a5f84caad5fee139f4b4d75752451/flake.nix#L21
+              #  (with pkgsCross.mingwW64; env "x86_64-pc-windows-gnu" stdenv.cc)
+              #];
+
+          RUSTFLAGS = (builtins.map (a: ''-L ${a}/lib'') [
+            mingw_w64
+            mingw_w64_pthreads_w_static
+          ]);
 
           env = {
             # Required by rust-analyzer
-            RUST_SRC_PATH = "${pkgs.rustToolchain}/lib/rustlib/src/rust/library";
+            RUST_SRC_PATH = "${rustToolchain}/lib/rustlib/src/rust/library";
+
+            # Set wine as our cargo runner to allow the `run` and `test`
+            # command to work.
+            CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER = "${wine}/bin/wine64";
 
             # Avoid polluting home dir
             WINEPREFIX = toString ./.wine;
@@ -92,6 +104,6 @@
             LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib";
           };
         };
-      });
-    };
+      };
+    });
 }
