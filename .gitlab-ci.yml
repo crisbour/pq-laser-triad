@@ -1,0 +1,14 @@
+stages:
+  - build
+
+build:
+  stage: build
+  script:
+    - nix --extra-experimental-features "nix-command flakes" develop
+    - cd sepia2-grpc
+    - cargo build --release --target x86_64-pc-windows-gnu --bin sepia2-grpc-server
+    #- cargo build --release --target x86_64-unknown-linux-gnu --lib
+  artifacts:
+    paths:
+      - target/x86_64-pc-windows-gnu/release/sepia2-grpc-server.exe
+      - target/release/libclient/so
