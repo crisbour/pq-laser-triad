@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package = sepia2.logs;
+
+message LogMessage {
+  string message = 1;
+}

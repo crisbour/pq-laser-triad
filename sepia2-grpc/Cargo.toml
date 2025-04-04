@@ -1,34 +1,10 @@
 [package]
 name = "sepia2-grpc"
-version = "0.5.0"
+version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-async-stream = "0.3.6"
-clap = { version = "4.5.29", features = ["derive"] }
-env_logger = "0.11.6"
-futures-core = "0.3.31"
-log = "0.4.25"
-oneshot = "0.1.10"
 prost = "0.13.4"
-prost-types = "0.13.4"
-sepia2 = { version = "0.5.0", path = "../sepia2" }
-stringcase = "0.3.0"
-tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread"] }
-tonic = "0.12.3"
-tonic-reflection = "0.12.3"
 
 [build-dependencies]
 prost-build = "0.13.4"
-tonic-build = { version = "0.12.3", features = ["prost"] }
-
-# Client library configuration
-[lib]
-name = "client"
-path = "src/lib.rs"         # Path to your library source file
-crate-type = ["cdylib"]      # Create a C-compatible dynamic library
-
-# Server binary
-[[bin]]
-    name="sepia2-grpc-server"
-    path="src/server.rs"

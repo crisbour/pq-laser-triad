@@ -42,6 +42,7 @@
 
         # Our windows cross package set.
         pkgs-cross-mingw = import pkgs.path {
+          inherit system;  # Critical fix to avoid impure env
           crossSystem = {
               config = "x86_64-w64-mingw32";
             };
@@ -84,10 +85,10 @@
               #  (with pkgsCross.mingwW64; env "x86_64-pc-windows-gnu" stdenv.cc)
               #];
 
-          RUSTFLAGS = (builtins.map (a: ''-L ${a}/lib'') [
-            mingw_w64
-            mingw_w64_pthreads_w_static
-          ]);
+              #RUSTFLAGS = (builtins.map (a: ''-L ${a}/lib'') [
+              #  mingw_w64
+              #  mingw_w64_pthreads_w_static
+              #]);
 
           env = {
             # Required by rust-analyzer
