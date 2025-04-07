@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::{env, fs};
+use eyre::{eyre, Result};
 
 fn main() {
     // TODO: Inspect libraries that Sepia2_Lib depends on when installing and wrap them in here
@@ -11,10 +12,15 @@ fn main() {
     println!("cargo:rerun-if-changed=src/bindings.rs");
 
     let (target_os, target_arch) = get_target_os_and_arch();
-    let (lib_name, lib_extension) = get_lib_name_and_extension(&target_os, &target_arch);
-    let src_dir = setup_src_dir(&target_os, &target_arch);
     let target_dir = setup_target_dir(&target_os);
-    setup_lib(&lib_name, &lib_extension, &src_dir, &target_dir);
+    match get_lib_name_and_extension(&target_os, &target_arch) {
+        Ok((lib_name, lib_extension)) => {
+            let src_dir = setup_src_dir(&target_os, &target_arch);
+            setup_lib(&lib_name, &lib_extension, &src_dir, &target_dir)
+        },
+        // NOTE: Let building proceed regardless, but `.dll` cannot be used
+        Err(e) => eprintln!("Error: {} => You may not call the library from your system!", e),
+    };
 
     // NOTE: Only generate bindings for Prima PQ Laser for now
     let bindings = bindgen::Builder::default()
@@ -150,7 +156,7 @@ fn get_target_os_and_arch() -> (OS, Arch) {
     }
 }
 
-fn get_lib_name_and_extension(target_os: &OS, target_arch: &Arch) -> (String, String) {
+fn get_lib_name_and_extension(target_os: &OS, target_arch: &Arch) -> Result<(String, String)> {
     let lib_name = if matches!(target_os, OS::Windows) {
         match target_arch {
             Arch::X86 => "Sepia2_Lib",
@@ -158,14 +164,14 @@ fn get_lib_name_and_extension(target_os: &OS, target_arch: &Arch) -> (String, St
             unsupported => panic!("Architecture {:?} not supported for Windows library", unsupported),
         }
     } else {
-        panic!("Only windows library exists");
+        return Err(eyre!("Only windows library exists"));
     };
     let lib_extension = match target_os {
         OS::Windows => ".dll",
         OS::Linux => ".so",
         OS::MacOS => ".dylib",
     };
-    (lib_name.into(), lib_extension.into())
+    Ok((lib_name.into(), lib_extension.into()))
 }
 
 fn setup_src_dir(target_os: &OS, target_arch: &Arch) -> PathBuf {

@@ -4,14 +4,14 @@
 
 include!(concat!(env!("OUT_DIR"), "/api.rs"));
 
-// TODO: Test 32bit version with wine
 /// `Sepia2` dynamic library absolute path.
 #[cfg(all(target_os = "windows", target_arch = "x86"))]
 pub const SEPIA2_PATH: &str = concat!(env!("OUT_DIR"), "\\Sepia2_Lib.dll");
 #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
 pub const SEPIA2_PATH: &str = concat!(env!("OUT_DIR"), "\\Sepia2_Lib64.dll");
 
-// TODO:Load library in lazy_static to be used across the library directly
+// TODO: If needed or multithreading, wrap the loaded lib in a mutex
+#[cfg(target_os = "windows")]
 lazy_static::lazy_static! {
     pub static ref SEPIA2: Sepia2_Lib = {
         unsafe { Sepia2_Lib::new(SEPIA2_PATH) }.expect("Unable to load Sepia2 dynamic library!")
