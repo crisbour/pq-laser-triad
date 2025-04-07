@@ -79,20 +79,22 @@
             cargo-deny
             cargo-edit
             cargo-watch
-          ];
-              #++ [
-              #  # Inspired from: https://github.com/tursodatabase/libsql-c/blob/ab9dc85ab14a5f84caad5fee139f4b4d75752451/flake.nix#L21
-              #  (with pkgsCross.mingwW64; env "x86_64-pc-windows-gnu" stdenv.cc)
-              #];
+          ]
+          ++ (with pkgsCross.mingwW64; [
+            # Inspired from: https://github.com/tursodatabase/libsql-c/blob/ab9dc85ab14a5f84caad5fee139f4b4d75752451/flake.nix#L21
+            stdenv.cc
+          ]);
 
-              #RUSTFLAGS = (builtins.map (a: ''-L ${a}/lib'') [
-              #  mingw_w64
-              #  mingw_w64_pthreads_w_static
-              #]);
+          # WARN: This make this environment only for Windows, how to let cargo choose the flags based on target, using .cargo/config.toml?
+          RUSTFLAGS = (builtins.map (a: ''-L ${a}/lib'') [
+            mingw_w64
+            mingw_w64_pthreads_w_static
+          ]);
 
           env = {
             # Required by rust-analyzer
             RUST_SRC_PATH = "${rustToolchain}/lib/rustlib/src/rust/library";
+
 
             # Set wine as our cargo runner to allow the `run` and `test`
             # command to work.
