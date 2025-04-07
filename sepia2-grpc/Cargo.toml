@@ -22,6 +22,11 @@ tonic-reflection = "0.12.3"
 prost-build = "0.13.4"
 tonic-build = { version = "0.12.3", features = ["prost"] }
 
+[features]
+default = ["client-lib"]
+client-lib = []
+server-bin = []
+
 # Client library configuration
 [lib]
 name = "client"
@@ -30,5 +35,6 @@ crate-type = ["cdylib"]      # Create a C-compatible dynamic library
 
 # Server binary
 [[bin]]
-    name="sepia2-grpc-server"
-    path="src/server.rs"
+name="sepia2-grpc-server"
+path="src/server.rs"
+required-features = ["server-bin"]

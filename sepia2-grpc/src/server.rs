@@ -46,7 +46,9 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::init();
+    //env_logger::init();
+    env_logger::Builder::from_env("RUST_LOG").init();
+    println!("Env logger initialized");
     let args = Args::parse();
 
     // tpc_socket |-> ~pipename
@@ -69,6 +71,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut server = Server::builder().add_service(svc);
 
     if args.reflection {
+        info!("gRPC reflection enabled");
         let reflection_svc = tonic_reflection::server::Builder::configure()
             .register_encoded_file_descriptor_set(sepia2_rpc::FILE_DESCRIPTOR_SET)
             .build_v1()

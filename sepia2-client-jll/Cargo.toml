@@ -7,8 +7,8 @@ edition = "2021"
 jlrs = { version = "0.21.1", features = ["ccall", "jlrs-derive"] }
 lazy_static = "1.5.0"
 oneshot = "0.1.11"
-sepia2 = { version = "0.1.0", path = "../sepia2" }
-sepia2-grpc = { version = "0.2.0", path = "../sepia2-grpc" }
+sepia2 = { version = "0.5.0", path = "../sepia2" }
+sepia2-grpc = { version = "0.5.0", path = "../sepia2-grpc" }
 tokio = { version = "1.43.0", features = ["sync"] }
 
 [features]

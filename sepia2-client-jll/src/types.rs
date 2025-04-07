@@ -67,7 +67,16 @@ macro_rules! julia_type_equivalent {
         unsafe impl Send for $type {}
         unsafe impl Sync for $type {}
 
-        unsafe impl OpaqueType for OpaqueInt {}
+        unsafe impl ForeignType for $type {
+            fn mark(ptls: PTls, data: &Self) -> usize {
+                // Safety: We mark all referenced managed data.
+                unsafe {
+                    let mut n_marked = 0;
+                    $( n_marked += mark_queue_obj(ptls, data.$field.as_value().as_ref()) as usize; )*
+                    n_marked
+                }
+            }
+        }
 
         impl From<sepia2::types::$type> for $type {
             fn from(item: sepia2::types::$type) -> $type {
