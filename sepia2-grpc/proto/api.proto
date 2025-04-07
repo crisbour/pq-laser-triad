@@ -2,8 +2,7 @@ syntax = "proto3";
 
 package sepia2.rpc;
 
-// FIXME: Resolve google imports
-//import "google/protobuf/empty.proto";
+import "google/protobuf/empty.proto";
 //import "google/protobuf/any.proto";
 
 // Request messages for functions requiring multiple parameters
@@ -51,14 +50,14 @@ message ModuleInfo {
     bool is_back_plane = 3;
     bool has_UTC = 4;
 }
-message FwError {
+message FwrError {
     int32 err_code = 1;
     int32 phase = 2;
     int32 location = 3;
     int32 slot = 4;
     string condition = 5;
 }
-message USBDevice {
+message UsbDevice {
     string ProductModel = 1;
     string SerialNumber = 2;
 }
@@ -134,7 +133,7 @@ message SetFrequencyRequest {
   int32 frequency = 2;
 }
 
-message GatingEnabledRequst {
+message GatingEnabledRequest {
   PriRequest pri_req= 1;
   bool gating_enabled = 2;
 }
@@ -174,7 +173,7 @@ message GatingDataRequest {
   GatingData gating_data = 2;
 }
 
-message HighImpeadanceRequest {
+message HighImpedanceRequest {
   PriRequest pri_req = 1;
   bool high_impedance = 2;
 }
@@ -184,54 +183,54 @@ message FwrRequestSupportRequest {
   FwrRequestSupport fwr_req = 2;
 }
 
-service Sepia2Service {
-  rpc LIB_DecodeError               (DeviceIdx               ) returns (LibDecodeErrorResponse );
-  rpc LIB_GetVersion                (Empty   ) returns (Version                );
-  rpc LIB_GetLibUSBVersion          (Empty   ) returns (Version                );
-  rpc LIB_IsRunningOnWine           (Empty   ) returns (Bool                   );
-  rpc USB_OpenDevice                (DeviceIdx               ) returns (USBDevice              );
-  rpc USB_OpenGetSerNumAndClose     (DeviceIdx               ) returns (USBDevice              );
-  rpc USB_GetStrDescriptor          (DeviceIdx               ) returns (String                 );
-  rpc USB_GetStrDescrByIdx          (GetStrDescrByIdxRequest ) returns (String                 );
-  rpc USB_IsOpenDevice              (DeviceIdx               ) returns (Bool                   );
-  rpc USB_CloseDevice               (DeviceIdx               ) returns (Empty  );
-  rpc FWR_DecodeErrPhaseName        (ErrPhaseRequest         ) returns (String                 );
-  rpc FWR_GetVersion                (DeviceIdx               ) returns (String                 );
-  rpc FWR_GetLastError              (DeviceIdx               ) returns (FwError                );
-  rpc FWR_GetWorkingMode            (DeviceIdx               ) returns (Int32                  );
-  rpc FWR_SetWorkingMode            (FwrSetWorkingModeRequest) returns (Empty  );
-  rpc FWR_RollBackToPermanentValues (DeviceIdx               ) returns (Empty  );
-  rpc FWR_StoreAsPermanentValues    (DeviceIdx               ) returns (Empty  );
-  rpc FWR_GetModuleMap              (GetModuleMapRequest     ) returns (Int32                  );
-  rpc FWR_GetModuleInfoByMapIdx     (MapIdxRequest           ) returns (ModuleInfo             );
-  rpc FWR_GetUptimeInfoByMapIdx     (MapIdxRequest           ) returns (UptimeInfo             );
-  rpc FWR_CreateSupportRequestText  (FwrRequestSupportRequest) returns (String                 );
-  rpc FWR_FreeModuleMap             (DeviceIdx               ) returns (Empty  );
-  rpc PRI_GetDeviceInfo             (PriRequest              ) returns (PrimaDevInfo           );
-  rpc PRI_DecodeOperationMode       (OperationModeRequest    ) returns (PrimaModeInfo          );
-  rpc PRI_GetOperationMode          (PriRequest              ) returns (Int32                 );
-  rpc PRI_SetOperationMode          (OperationModeRequest    ) returns (Empty  );
-  rpc PRI_DecodeTriggerSource       (TriggerSourceRequest    ) returns (TriggerInfo            );
-  rpc PRI_GetTriggerSource          (PriRequest              ) returns (Int32                  );
-  rpc PRI_SetTriggerSource          (TriggerSourceRequest    ) returns (Empty  );
-  rpc PRI_GetTriggerLevelLimits     (PriRequest              ) returns (TriggerLevelInfo       );
-  rpc PRI_GetTriggerLevel           (PriRequest              ) returns (Int32                  );
-  rpc PRI_SetTriggerLevel           (TriggerLevelRequest     ) returns (Empty  );
-  rpc PRI_GetFrequencyLimits        (PriRequest              ) returns (FrequencyLimitsResponse);
-  rpc PRI_GetFrequency              (PriRequest              ) returns (Int32                  );
-  rpc PRI_SetFrequency              (SetFrequencyRequest     ) returns (Empty  );
-  rpc PRI_GetGatingLimits           (PriRequest              ) returns (PrimaGatingInfo        );
-  rpc PRI_GetGatingData             (PriRequest              ) returns (GatingData             );
-  rpc PRI_SetGatingData             (GatingDataRequest       ) returns (Empty  );
-  rpc PRI_GetGatingEnabled          (PriRequest              ) returns (Bool                   );
-  rpc PRI_SetGatingEnabled          (GatingEnabledRequst     ) returns (Empty  );
-  rpc PRI_GetGateHighImpedance      (PriRequest              ) returns (Bool                   );
-  rpc PRI_SetGateHighImpedance      (HighImpeadanceRequest   ) returns (Empty  );
-  rpc PRI_DecodeWavelength          (WavelengthRequest       ) returns (Int32                  );
-  rpc PRI_GetWavelengthIdx          (PriRequest              ) returns (Int32                  );
-  rpc PRI_SetWavelengthIdx          (WavelengthRequest       ) returns (Empty  );
-  rpc PRI_GetIntensity              (WavelengthRequest       ) returns (Uint32                 );
-  rpc PRI_SetIntensity              (SetIntensityRequest     ) returns (Empty  );
+service Sepia2 {
+  rpc LIB_DecodeError               (Error                    ) returns (LibDecodeErrorResponse  );
+  rpc LIB_GetVersion                (google.protobuf.Empty    ) returns (Version                 );
+  rpc LIB_GetLibUSBVersion          (google.protobuf.Empty    ) returns (Version                 );
+  rpc LIB_IsRunningOnWine           (google.protobuf.Empty    ) returns (Bool                    );
+  rpc USB_OpenDevice                (DeviceIdx                ) returns (UsbDevice               );
+  rpc USB_OpenGetSerNumAndClose     (DeviceIdx                ) returns (UsbDevice               );
+  rpc USB_GetStrDescriptor          (DeviceIdx                ) returns (String                  );
+  rpc USB_GetStrDescrByIdx          (GetStrDescrByIdxRequest  ) returns (String                  );
+  rpc USB_IsOpenDevice              (DeviceIdx                ) returns (Bool                    );
+  rpc USB_CloseDevice               (DeviceIdx                ) returns (google.protobuf.Empty                   );
+  rpc FWR_DecodeErrPhaseName        (ErrPhaseRequest          ) returns (String                  );
+  rpc FWR_GetVersion                (DeviceIdx                ) returns (String                  );
+  rpc FWR_GetLastError              (DeviceIdx                ) returns (FwrError                 );
+  rpc FWR_GetWorkingMode            (DeviceIdx                ) returns (Int32                   );
+  rpc FWR_SetWorkingMode            (FwrSetWorkingModeRequest ) returns (google.protobuf.Empty                   );
+  rpc FWR_RollBackToPermanentValues (DeviceIdx                ) returns (google.protobuf.Empty                   );
+  rpc FWR_StoreAsPermanentValues    (DeviceIdx                ) returns (google.protobuf.Empty                   );
+  rpc FWR_GetModuleMap              (GetModuleMapRequest      ) returns (Int32                   );
+  rpc FWR_GetModuleInfoByMapIdx     (MapIdxRequest            ) returns (ModuleInfo              );
+  rpc FWR_GetUptimeInfoByMapIdx     (MapIdxRequest            ) returns (UptimeInfo              );
+  rpc FWR_CreateSupportRequestText  (FwrRequestSupportRequest ) returns (String                  );
+  rpc FWR_FreeModuleMap             (DeviceIdx                ) returns (google.protobuf.Empty                   );
+  rpc PRI_GetDeviceInfo             (PriRequest               ) returns (PrimaDevInfo            );
+  rpc PRI_DecodeOperationMode       (OperationModeRequest     ) returns (PrimaModeInfo           );
+  rpc PRI_GetOperationMode          (PriRequest               ) returns (Int32                   );
+  rpc PRI_SetOperationMode          (OperationModeRequest     ) returns (google.protobuf.Empty                   );
+  rpc PRI_DecodeTriggerSource       (TriggerSourceRequest     ) returns (TriggerInfo             );
+  rpc PRI_GetTriggerSource          (PriRequest               ) returns (Int32                   );
+  rpc PRI_SetTriggerSource          (TriggerSourceRequest     ) returns (google.protobuf.Empty                   );
+  rpc PRI_GetTriggerLevelLimits     (PriRequest               ) returns (TriggerLevelInfo        );
+  rpc PRI_GetTriggerLevel           (PriRequest               ) returns (Int32                   );
+  rpc PRI_SetTriggerLevel           (TriggerLevelRequest      ) returns (google.protobuf.Empty                   );
+  rpc PRI_GetFrequencyLimits        (PriRequest               ) returns (FrequencyLimitsResponse );
+  rpc PRI_GetFrequency              (PriRequest               ) returns (Int32                   );
+  rpc PRI_SetFrequency              (SetFrequencyRequest      ) returns (google.protobuf.Empty                   );
+  rpc PRI_GetGatingLimits           (PriRequest               ) returns (PrimaGatingInfo         );
+  rpc PRI_GetGatingData             (PriRequest               ) returns (GatingData              );
+  rpc PRI_SetGatingData             (GatingDataRequest        ) returns (google.protobuf.Empty                   );
+  rpc PRI_GetGatingEnabled          (PriRequest               ) returns (Bool                    );
+  rpc PRI_SetGatingEnabled          (GatingEnabledRequest      ) returns (google.protobuf.Empty                   );
+  rpc PRI_GetGateHighImpedance      (PriRequest               ) returns (Bool                    );
+  rpc PRI_SetGateHighImpedance      (HighImpedanceRequest    ) returns (google.protobuf.Empty                   );
+  rpc PRI_DecodeWavelength          (WavelengthRequest        ) returns (Int32                   );
+  rpc PRI_GetWavelengthIdx          (PriRequest               ) returns (Int32                   );
+  rpc PRI_SetWavelengthIdx          (WavelengthRequest        ) returns (google.protobuf.Empty                   );
+  rpc PRI_GetIntensity              (WavelengthRequest        ) returns (Uint32                  );
+  rpc PRI_SetIntensity              (SetIntensityRequest      ) returns (google.protobuf.Empty                   );
 }
 
 
