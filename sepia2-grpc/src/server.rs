@@ -75,7 +75,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         info!("gRPC reflection enabled");
         let reflection_svc = tonic_reflection::server::Builder::configure()
             .register_encoded_file_descriptor_set(sepia2_rpc::FILE_DESCRIPTOR_SET)
-            .build()?;
+            .build_v1()?;
         server = server.add_service(reflection_svc);
     }
 
@@ -87,6 +87,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         info!("Listening on {}", addr);
         server.serve(addr).await?;
     } else if let Some(pipename) = args.pipename {
+        info!("Listening on pipe: {}", pipename);
         server
             .serve_with_incoming(get_named_pipe_transport(&pipename))
             .await?;

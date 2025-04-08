@@ -193,44 +193,44 @@ service Sepia2 {
   rpc USB_GetStrDescriptor          (DeviceIdx                ) returns (String                  );
   rpc USB_GetStrDescrByIdx          (GetStrDescrByIdxRequest  ) returns (String                  );
   rpc USB_IsOpenDevice              (DeviceIdx                ) returns (Bool                    );
-  rpc USB_CloseDevice               (DeviceIdx                ) returns (google.protobuf.Empty                   );
+  rpc USB_CloseDevice               (DeviceIdx                ) returns (google.protobuf.Empty   );
   rpc FWR_DecodeErrPhaseName        (ErrPhaseRequest          ) returns (String                  );
   rpc FWR_GetVersion                (DeviceIdx                ) returns (String                  );
-  rpc FWR_GetLastError              (DeviceIdx                ) returns (FwrError                 );
+  rpc FWR_GetLastError              (DeviceIdx                ) returns (FwrError                );
   rpc FWR_GetWorkingMode            (DeviceIdx                ) returns (Int32                   );
-  rpc FWR_SetWorkingMode            (FwrSetWorkingModeRequest ) returns (google.protobuf.Empty                   );
-  rpc FWR_RollBackToPermanentValues (DeviceIdx                ) returns (google.protobuf.Empty                   );
-  rpc FWR_StoreAsPermanentValues    (DeviceIdx                ) returns (google.protobuf.Empty                   );
+  rpc FWR_SetWorkingMode            (FwrSetWorkingModeRequest ) returns (google.protobuf.Empty   );
+  rpc FWR_RollBackToPermanentValues (DeviceIdx                ) returns (google.protobuf.Empty   );
+  rpc FWR_StoreAsPermanentValues    (DeviceIdx                ) returns (google.protobuf.Empty   );
   rpc FWR_GetModuleMap              (GetModuleMapRequest      ) returns (Int32                   );
   rpc FWR_GetModuleInfoByMapIdx     (MapIdxRequest            ) returns (ModuleInfo              );
   rpc FWR_GetUptimeInfoByMapIdx     (MapIdxRequest            ) returns (UptimeInfo              );
   rpc FWR_CreateSupportRequestText  (FwrRequestSupportRequest ) returns (String                  );
-  rpc FWR_FreeModuleMap             (DeviceIdx                ) returns (google.protobuf.Empty                   );
+  rpc FWR_FreeModuleMap             (DeviceIdx                ) returns (google.protobuf.Empty   );
   rpc PRI_GetDeviceInfo             (PriRequest               ) returns (PrimaDevInfo            );
   rpc PRI_DecodeOperationMode       (OperationModeRequest     ) returns (PrimaModeInfo           );
   rpc PRI_GetOperationMode          (PriRequest               ) returns (Int32                   );
-  rpc PRI_SetOperationMode          (OperationModeRequest     ) returns (google.protobuf.Empty                   );
+  rpc PRI_SetOperationMode          (OperationModeRequest     ) returns (google.protobuf.Empty   );
   rpc PRI_DecodeTriggerSource       (TriggerSourceRequest     ) returns (TriggerInfo             );
   rpc PRI_GetTriggerSource          (PriRequest               ) returns (Int32                   );
-  rpc PRI_SetTriggerSource          (TriggerSourceRequest     ) returns (google.protobuf.Empty                   );
+  rpc PRI_SetTriggerSource          (TriggerSourceRequest     ) returns (google.protobuf.Empty   );
   rpc PRI_GetTriggerLevelLimits     (PriRequest               ) returns (TriggerLevelInfo        );
   rpc PRI_GetTriggerLevel           (PriRequest               ) returns (Int32                   );
-  rpc PRI_SetTriggerLevel           (TriggerLevelRequest      ) returns (google.protobuf.Empty                   );
+  rpc PRI_SetTriggerLevel           (TriggerLevelRequest      ) returns (google.protobuf.Empty   );
   rpc PRI_GetFrequencyLimits        (PriRequest               ) returns (FrequencyLimitsResponse );
   rpc PRI_GetFrequency              (PriRequest               ) returns (Int32                   );
-  rpc PRI_SetFrequency              (SetFrequencyRequest      ) returns (google.protobuf.Empty                   );
+  rpc PRI_SetFrequency              (SetFrequencyRequest      ) returns (google.protobuf.Empty   );
   rpc PRI_GetGatingLimits           (PriRequest               ) returns (PrimaGatingInfo         );
   rpc PRI_GetGatingData             (PriRequest               ) returns (GatingData              );
-  rpc PRI_SetGatingData             (GatingDataRequest        ) returns (google.protobuf.Empty                   );
+  rpc PRI_SetGatingData             (GatingDataRequest        ) returns (google.protobuf.Empty   );
   rpc PRI_GetGatingEnabled          (PriRequest               ) returns (Bool                    );
-  rpc PRI_SetGatingEnabled          (GatingEnabledRequest      ) returns (google.protobuf.Empty                   );
+  rpc PRI_SetGatingEnabled          (GatingEnabledRequest     ) returns (google.protobuf.Empty   );
   rpc PRI_GetGateHighImpedance      (PriRequest               ) returns (Bool                    );
-  rpc PRI_SetGateHighImpedance      (HighImpedanceRequest    ) returns (google.protobuf.Empty                   );
+  rpc PRI_SetGateHighImpedance      (HighImpedanceRequest     ) returns (google.protobuf.Empty   );
   rpc PRI_DecodeWavelength          (WavelengthRequest        ) returns (Int32                   );
   rpc PRI_GetWavelengthIdx          (PriRequest               ) returns (Int32                   );
-  rpc PRI_SetWavelengthIdx          (WavelengthRequest        ) returns (google.protobuf.Empty                   );
+  rpc PRI_SetWavelengthIdx          (WavelengthRequest        ) returns (google.protobuf.Empty   );
   rpc PRI_GetIntensity              (WavelengthRequest        ) returns (Uint32                  );
-  rpc PRI_SetIntensity              (SetIntensityRequest      ) returns (google.protobuf.Empty                   );
+  rpc PRI_SetIntensity              (SetIntensityRequest      ) returns (google.protobuf.Empty   );
 }
 
 
@@ -252,7 +252,6 @@ service Sepia2 {
 message Error {
   enum Sepia2Error {
     SEPIA2_ERR_NO_ERROR                                            = 0;       //  "no error" - NOTE: This shouldn't be reachable code
-
     SEPIA2_ERR_FW_MEMORY_ALLOCATION_ERROR                          = -1001;   //  "FW: memory allocation error"
     SEPIA2_ERR_FW_CRC_ERROR_WHILE_CHECKING_SCM_828_MODULE          = -1002;   //  "FW: CRC error while checking SCM 828 module"
     SEPIA2_ERR_FW_CRC_ERROR_WHILE_CHECKING_BACKPLANE               = -1003;   //  "FW: CRC error while checking backplane"
@@ -262,7 +261,6 @@ message Error {
     SEPIA2_ERR_FW_INSUFFICIENT_FW_VERSION                          = -1007;   //  "FW: insufficient FW version"
     SEPIA2_ERR_FW_WRONG_WORKINGMODE                                = -1008;   //  "FW: wrong workingmode"
     SEPIA2_ERR_FW_ILLEGAL_MODULE_CHANGE                            = -1111;   //  "FW: illegal module change"
-                                                                          ;
     SEPIA2_ERR_USB_WRONG_DRIVER_VERSION                            = -2001;   //  "USB: wrong driver version"
     SEPIA2_ERR_USB_OPEN_DEVICE_ERROR                               = -2002;   //  "USB: open device error"
     SEPIA2_ERR_USB_DEVICE_BUSY                                     = -2003;   //  "USB: device busy"
@@ -291,7 +289,6 @@ message Error {
     SEPIA2_ERR_FRAM_IS_WRITE_PROTECTED                             = -2304;   //  "FRAM: is write protected"
     SEPIA2_ERR_DCL_FILE_SPECIFIES_DIFFERENT_MODULETYPE             = -2305;   //  "DCL: file specifies different moduletype"
     SEPIA2_ERR_DCL_FILE_SPECIFIES_DIFFERENT_SERIAL_NUMBER          = -2306;   //  "DCL: file specifies different serial number"
-                                                                          ;
     SEPIA2_ERR_I2C_INVALID_ARGUMENT                                = -3001;   //  "I2C: invalid argument"
     SEPIA2_ERR_I2C_NO_ACKNOWLEDGE_ON_WRITE_ADRESSBYTE              = -3002;   //  "I2C: no acknowledge on write adressbyte"
     SEPIA2_ERR_I2C_NO_ACKNOWLEDGE_ON_READ_ADRESSBYTE               = -3003;   //  "I2C: no acknowledge on read adressbyte"
@@ -324,7 +321,6 @@ message Error {
     SEPIA2_ERR_LMP1_ADC_TABLES_NOT_FOUND                           = -3501;   //  "LMP1: ADC tables not found"
     SEPIA2_ERR_LMP1_ADC_OVERFLOW                                   = -3502;   //  "LMP1: ADC overflow"
     SEPIA2_ERR_LMP1_ADC_UNDERFLOW                                  = -3503;   //  "LMP1: ADC underflow"
-                                                                          ;
     SEPIA2_ERR_SCM_VOLTAGE_LIMITS_TABLE_NOT_FOUND                  = -4001;   //  "SCM: voltage limits table not found"
     SEPIA2_ERR_SCM_VOLTAGE_SCALING_LIST_NOT_FOUND                  = -4002;   //  "SCM: voltage scaling list not found"
     SEPIA2_ERR_SCM_REPEATEDLY_MEASURED_VOLTAGE_FAILURE             = -4003;   //  "SCM: repeatedly measured voltage failure"
@@ -353,7 +349,6 @@ message Error {
     SEPIA2_ERR_SCM_INVALID_DAC_CONTROL_TABLE_A                     = -4045;   //  "SCM: invalid DAC control table A"
     SEPIA2_ERR_SCM_INVALID_DAC_CONTROL_TABLE_B                     = -4046;   //  "SCM: invalid DAC control table B"
     SEPIA2_ERR_SCM_TEMPERATURE_TABLE_READ_FAILED                   = -4047;   //  "SCM: temperature table read failed"
-                                                                          ;
     SEPIA2_ERR_SOM_INT_OSCILLATOR_S_FREQ_LIST_NOT_FOUND            = -5001;   //  "SOM: int. oscillator's freq.-list not found"
     SEPIA2_ERR_SOM_TRIGGER_MODE_LIST_NOT_FOUND                     = -5002;   //  "SOM: trigger mode list not found"
     SEPIA2_ERR_SOM_TRIGGER_LEVEL_NOT_FOUND                         = -5003;   //  "SOM: trigger level not found"
@@ -407,7 +402,6 @@ message Error {
     SEPIA2_ERR_SOMD_HW_CALIBRATION_DATA_NOT_FOUND                  = -5114;   //  "SOMD HW: calibration data not found"
     SEPIA2_ERR_SOMD_HW_WRONG_EXTERNAL_FREQUENCY                    = -5115;   //  "SOMD HW: wrong external frequency"
     SEPIA2_ERR_SOMD_HW_EXTERNAL_FREQUENCY_NOT_STABLE               = -5116;   //  "SOMD HW: external frequency not stable"
-                                                                          ;
     SEPIA2_ERR_SLM_ILLEGAL_FREQUENCY_TRIGGERMODE                   = -6001;   //  "SLM: illegal frequency / triggermode"
     SEPIA2_ERR_SLM_ILLEGAL_INTENSITY                               = -6002;   //  "SLM: illegal intensity (> 100% or < 0%)"
     SEPIA2_ERR_SLM_ILLEGAL_HEAD_TYPE                               = -6003;   //  "SLM: illegal head type"
@@ -463,7 +457,6 @@ message Error {
     SEPIA2_ERR_VCL_BIAS_VOLTAGE_CALTABLE_NOT_FOUND                 = -6753;   //  "VCL: bias voltage calibration table not found"
     SEPIA2_ERR_VCL_ILLEGAL_TEMPERATURE                             = -6754;   //  "VCL: illegal temperature"
     SEPIA2_ERR_VCL_ILLEGAL_BIAS_VOLTAGE                            = -6755;   //  "VCL: illegal bias voltage"
-                                                                          ;
     SEPIA2_ERR_SPM_ILLEGAL_INPUT_VALUE                             = -7001;   //  "SPM: illegal input value"
     SEPIA2_ERR_SPM_VALUE_OUT_OF_BOUNDS                             = -7006;   //  "SPM: value out of bounds"
     SEPIA2_ERR_SPM_FW_OUT_OF_MEMORY                                = -7011;   //  "SPM FW: out of memory"
@@ -586,7 +579,6 @@ message Error {
     SEPIA2_ERR_SWS_HW_MODULE_2_MOTOR_3_TIMEOUT                     = -7434;   //  "SWS HW: module 2, motor 3: timeout"
     SEPIA2_ERR_SWS_HW_MODULE_2_MOTOR_3_FLASH_WRITE_ERROR           = -7435;   //  "SWS HW: module 2, motor 3: flash write error"
     SEPIA2_ERR_SWS_HW_MODULE_2_MOTOR_3_OUT_OF_BOUNDS               = -7436;   //  "SWS HW: module 2, motor 3: out of bounds"
-                                                                          ;
     SEPIA2_ERR_LIB_TOO_MANY_USB_HANDLES                            = -9001;   //  "LIB: too many USB handles"
     SEPIA2_ERR_LIB_ILLEGAL_DEVICE_INDEX                            = -9002;   //  "LIB: illegal device index"
     SEPIA2_ERR_LIB_USB_DEVICE_OPEN_ERROR                           = -9003;   //  "LIB: USB device open error"
