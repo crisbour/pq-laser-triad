@@ -1,6 +1,7 @@
 use clap::Parser;
 use core::net::SocketAddr;
 use log::{debug, error, info, warn};
+use env_logger::Env;
 use tonic::{transport::Server, Request, Response, Status};
 
 use sepia2::api::*;
@@ -47,7 +48,7 @@ struct Args {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     //env_logger::init();
-    env_logger::Builder::from_env("RUST_LOG").init();
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     println!("Env logger initialized");
     let args = Args::parse();
 

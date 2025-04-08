@@ -12,7 +12,7 @@ This is composed of three projects
     - [X] `types`: types of interest for information tracking
     - [X] `constants`: constant defines for flags and lengths defined in the spec
 - `sepia2`: High level API in idiomatic Rust
-    - [ ] `../build`: Parse `.proto` file and generate API that can be used for both
+    - [X] `../build`: Parse `.proto` file and generate API that can be used for both
       stand-alone API or through `gRPC`
       - On the fence to actually go through with this, might be better to keep
       it isolated and have macros from/into that convert, throwing compile time
@@ -24,7 +24,7 @@ This is composed of three projects
 - `sepia2-grpc`: `Tonic` service instantiating connection to device and control
     - [X] `../build`: Generate service and types from `.proto`
     - [-] `service`: Handle req->resp
-    - [ ] `logs`: Configure log subscription channel that dumps logs to both system
+    - [ ] `logs`: Configure log subscription channel that dumps logs to both system and grpc stream
         - gRPC Streaming and subscribed channels
 
 
