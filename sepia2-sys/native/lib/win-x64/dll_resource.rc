@@ -1,0 +1,2 @@
+// Define the DLL as an RCDATA resource
+IDR_MYDLL RCDATA "Sepia2_Lib64.dll"

@@ -22,6 +22,7 @@ fn main() {
         Err(e) => eprintln!("Error: {} => You may not call the library from your system!", e),
     };
 
+
     // NOTE: Only generate bindings for Prima PQ Laser for now
     let bindings = bindgen::Builder::default()
         .header("wrapper.h")
@@ -216,4 +217,6 @@ fn setup_lib(lib_name: &str, lib_extension: &str, src_dir: &Path, target_dir: &P
         .expect("Unable to copy Sepia2_Lib library to the target directory!");
     // FIXME: Understand why dylib linking doesn't work with DLL
     //println!("cargo:rustc-link-lib=dylib={}", lib_name);
+    embed_resource::compile(src_dir.join("dll_resource.rc"), embed_resource::NONE)
+        .manifest_optional().unwrap();
 }

@@ -4,18 +4,51 @@
 
 include!(concat!(env!("OUT_DIR"), "/api.rs"));
 
+// FIXME: How to bundle the dll in the generated executable for Windows?
+// I.e. I want the DLL to be part of the executable instead of being loaded at runtime, because the
+// path won't match between where the executable was build and where it's used
 /// `Sepia2` dynamic library absolute path.
-#[cfg(all(target_os = "windows", target_arch = "x86"))]
-pub const SEPIA2_PATH: &str = concat!(env!("OUT_DIR"), "\\Sepia2_Lib.dll");
-#[cfg(all(target_os = "windows", target_arch = "x86_64"))]
-pub const SEPIA2_PATH: &str = concat!(env!("OUT_DIR"), "\\Sepia2_Lib64.dll");
+use winapi::um::libloaderapi::{FindResourceW, LoadResource, SizeofResource, LockResource, FreeResource};
+use winapi::um::winuser::RT_RCDATA;
+use std::ptr;
+use std::ffi::OsStr;
+use std::os::windows::ffi::OsStrExt;
+
+unsafe fn extract_and_load_dll() -> Result<Sepia2_Lib, Box<dyn std::error::Error>> {
+    // Convert resource name to wide string
+    let resource_name = OsStr::new("IDR_MYDLL").encode_wide().chain(Some(0)).collect::<Vec<_>>();
+
+    // Locate the resource
+    let h_resource = FindResourceW(
+        ptr::null_mut(),
+        resource_name.as_ptr(),
+        RT_RCDATA
+    );
+
+    // Load and lock the resource
+    let h_global = LoadResource(ptr::null_mut(), h_resource);
+    let dll_data = LockResource(h_global) as *const u8;
+    let dll_size = SizeofResource(ptr::null_mut(), h_resource) as usize;
+
+    // Write to temp file
+    let temp_path = std::env::temp_dir().join("vendor_library.dll");
+    std::fs::write(&temp_path, std::slice::from_raw_parts(dll_data, dll_size))?;
+
+    let sepia2_lib = unsafe { Sepia2_Lib::new(&temp_path) }.expect("Unable to load Sepia2 dynamic library!");
+
+
+    // Cleanup (optional)
+    FreeResource(h_global);
+    // TODO: Cleanup the temp when the program exits
+    //std::fs::remove_file(temp_path)?;
+
+    Ok(sepia2_lib)
+}
 
 // TODO: If needed or multithreading, wrap the loaded lib in a mutex
 #[cfg(target_os = "windows")]
 lazy_static::lazy_static! {
-    pub static ref SEPIA2: Sepia2_Lib = {
-        unsafe { Sepia2_Lib::new(SEPIA2_PATH) }.expect("Unable to load Sepia2 dynamic library!")
-    };
+    pub static ref SEPIA2: Sepia2_Lib = unsafe { extract_and_load_dll().unwrap() };
 }
 
 // ----------------------------------------------------------------

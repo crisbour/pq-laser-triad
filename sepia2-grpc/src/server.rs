@@ -74,8 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         info!("gRPC reflection enabled");
         let reflection_svc = tonic_reflection::server::Builder::configure()
             .register_encoded_file_descriptor_set(sepia2_rpc::FILE_DESCRIPTOR_SET)
-            .build_v1()
-            .unwrap();
+            .build()?;
         server = server.add_service(reflection_svc);
     }
 
