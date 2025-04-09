@@ -1,3 +1,14 @@
+use derive_more::TryFrom;
+
+#[derive(Debug, TryFrom)]
+#[try_from(repr)]
+#[repr(i32)]
+pub enum OperationMode {
+    Off = 0,
+    NarrowPulse = 1,
+    BroadPulse = 2,
+    CW = 3,
+}
 
 #[derive(Debug)]
 pub struct UsbDevice {

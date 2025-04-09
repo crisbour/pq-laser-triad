@@ -381,7 +381,7 @@ pub fn PRI_DecodeOperationMode(
         Err(e) => Err(e),
     }
 }
-pub fn PRI_GetOperationMode(dev_idx: i32, slot_id: i32) -> Result<i32> {
+pub fn PRI_GetOperationMode(dev_idx: i32, slot_id: i32) -> Result<OperationMode> {
     let mut piOperModeIdx: i32 = 0;
 
     match Sepia2Error::from_raw(unsafe {
@@ -391,16 +391,16 @@ pub fn PRI_GetOperationMode(dev_idx: i32, slot_id: i32) -> Result<i32> {
             &mut piOperModeIdx,
         )
     }) {
-        Ok(_) => Ok(piOperModeIdx),
+        Ok(_) => Ok(OperationMode::try_from(piOperModeIdx).map_err(|_| Sepia2Error::PriIllegalOperationModeIndex)?),
         Err(e) => Err(e),
     }
 }
-pub fn PRI_SetOperationMode(dev_idx: i32, slot_id: i32, oper_mode_idx: i32) -> Result<()> {
+pub fn PRI_SetOperationMode(dev_idx: i32, slot_id: i32, oper_mode_enum: OperationMode) -> Result<()> {
     Sepia2Error::from_raw(unsafe {
         SEPIA2.SEPIA2_PRI_SetOperationMode(
             dev_idx,       // iDevIdx,
             slot_id,       // iSlotId,
-            oper_mode_idx, // iOperModeIdx,
+            oper_mode_enum as i32, // iOperModeIdx,
         )
     })
 }

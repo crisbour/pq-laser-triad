@@ -417,11 +417,11 @@ impl Sepia2 for Sepia2Service {
     async fn pri_get_operation_mode(
         &self,
         req: Request<sepia2_rpc::PriRequest>,
-    ) -> Result<Response<sepia2_rpc::Int32>, Status> {
+    ) -> Result<Response<sepia2_rpc::OperationModeResponse>, Status> {
         println!("Got a request for {}: {:?}", "PRI_GetOperationMode", req);
         let req = req.into_inner();
         match PRI_GetOperationMode(req.dev_idx, req.slot_id) {
-            Ok(result) => Ok(Response::new(sepia2_rpc::Int32::from(result))),
+            Ok(result) => Ok(Response::new(sepia2_rpc::OperationModeResponse::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_GetOperationMode", e);
                 Err(Status::new(
@@ -811,7 +811,7 @@ impl Sepia2 for Sepia2Service {
                 ))
             }
         };
-        match PRI_DecodeOperationMode(pri_req.dev_idx, pri_req.slot_id, req.oper_mode_idx) {
+        match PRI_DecodeOperationMode(pri_req.dev_idx, pri_req.slot_id, req.oper_mode_enum) {
             Ok(result) => Ok(Response::new(sepia2_rpc::PrimaModeInfo::from(result))),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_DecodeOperationMode", e);
@@ -837,7 +837,7 @@ impl Sepia2 for Sepia2Service {
                 ))
             }
         };
-        match PRI_SetOperationMode(pri_req.dev_idx, pri_req.slot_id, req.oper_mode_idx) {
+        match PRI_SetOperationMode(pri_req.dev_idx, pri_req.slot_id, sepia2::types::OperationMode::try_from(req.oper_mode_enum).unwrap()) {
             Ok(_) => Ok(Response::new(())),
             Err(e) => {
                 error!("Calling {}: {}", "PRI_SetOperationMode", e);

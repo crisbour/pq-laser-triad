@@ -148,9 +148,20 @@ message SetIntensityRequest {
   int32 intensity = 2;
 }
 
+enum OperationMode {
+  Off = 0;
+  NarrowPulse = 1;
+  BroadPulse = 2;
+  CW = 3;
+};
+
 message OperationModeRequest {
   PriRequest pri_req = 1;
-  int32 oper_mode_idx = 2;
+  OperationMode oper_mode_enum = 2;
+}
+
+message OperationModeResponse {
+  OperationMode value = 1;
 }
 
 message TriggerSourceRequest {
@@ -208,7 +219,7 @@ service Sepia2 {
   rpc FWR_FreeModuleMap             (DeviceIdx                ) returns (google.protobuf.Empty   );
   rpc PRI_GetDeviceInfo             (PriRequest               ) returns (PrimaDevInfo            );
   rpc PRI_DecodeOperationMode       (OperationModeRequest     ) returns (PrimaModeInfo           );
-  rpc PRI_GetOperationMode          (PriRequest               ) returns (Int32                   );
+  rpc PRI_GetOperationMode          (PriRequest               ) returns (OperationModeResponse   );
   rpc PRI_SetOperationMode          (OperationModeRequest     ) returns (google.protobuf.Empty   );
   rpc PRI_DecodeTriggerSource       (TriggerSourceRequest     ) returns (TriggerInfo             );
   rpc PRI_GetTriggerSource          (PriRequest               ) returns (Int32                   );

@@ -71,6 +71,13 @@ impl From<(i32, i32)> for GatingData {
     }
 }
 
+impl From<sepia2::types::OperationMode> for OperationModeResponse {
+    fn from(item: sepia2::types::OperationMode) -> Self {
+        // TODO: Check if direct conversion works
+        Self { value: item as i32 }
+    }
+}
+
 convert_struct!(UsbDevice,  product_model, serial_number);
 convert_struct!(FwrError,  err_code, phase, location, slot, condition);
 convert_struct!(FwrRequestSupport, preamble, calling_sw, options, buffer);

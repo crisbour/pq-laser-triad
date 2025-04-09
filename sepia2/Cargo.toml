@@ -12,6 +12,7 @@ tempfile = "3.16.0"
 test-log = "0.2.17"
 prost = "0.13.4"
 sepia2-sys = { path = "../sepia2-sys" }
+derive_more = { version = "2.0.1", features = ["from", "into", "try_from"] }
 
 [build-dependencies]
 prost-build = "0.5"
