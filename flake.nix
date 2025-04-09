@@ -68,6 +68,7 @@
         {
         default = pkgs.mkShell {
           packages = with pkgs; [
+            just
             mingw_w64_cc
             rustToolchain
             grpc-tools # protoc
