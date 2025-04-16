@@ -117,7 +117,7 @@
               # Use environment variable
               root = "$REPO_ROOT";
               # Optional: Only enable editable for these packages
-              # members = [ "hsi-analyse" ];
+              members = [ "sepia2-client-py" ];
             };
 
             # Override previous set with our overrideable overlay.
@@ -127,7 +127,7 @@
 
                 # Apply fixups for building an editable package of your workspace packages
                 (final: prev: {
-                  sepia2-client = prev.sepia2-client.overrideAttrs (old: {
+                  sepia2-client-py = prev.sepia2-client-py.overrideAttrs (old: {
                     # Hatchling (our build system) has a dependency on the `editables` package when building editables.
                     #
                     # In normal Python flows this dependency is dynamically handled, and doesn't need to be explicitly declared.
@@ -139,6 +139,7 @@
                       fileset = lib.fileset.unions [
                         (old.src + "/pyproject.toml")
                         (old.src + "/README.md")
+                        (old.src + "/src/sepia2_client_py/__init__.py")
                       ];
                     };
                     nativeBuildInputs =

@@ -1,5 +1,5 @@
 [project]
-name = "sepia2-client"
+name = "sepia2-client-py"
 version = "0.1.0"
 description = "Sepia2 gRPC client for python, automatically derived from current proto definition"
 readme = "README.md"
@@ -17,6 +17,10 @@ build-backend = "hatchling.build"
 packages = ["src/sepia2_client"]
 
 [dependency-groups]
+dev = [
+  "ruff>=0.7.2",
+  {include-group = "test"}
+]
 test = ["pytest>=8.3.5"]
 
 [tool.pytest.ini_options]
