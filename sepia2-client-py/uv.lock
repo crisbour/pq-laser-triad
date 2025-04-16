@@ -137,7 +137,7 @@ dependencies = [
 ]
 
 [package.dev-dependencies]
-dev = [
+test = [
     { name = "pytest" },
 ]
 
@@ -145,7 +145,7 @@ dev = [
 requires-dist = [{ name = "grpcio-tools", specifier = ">=1.71.0" }]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=8.3.5" }]
+test = [{ name = "pytest", specifier = ">=8.3.5" }]
 
 [[package]]
 name = "setuptools"
