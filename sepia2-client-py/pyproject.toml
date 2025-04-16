@@ -15,7 +15,7 @@ build-backend = "setuptools.build_meta"
 
 # FIXME: This is a workaround for hatchling not supporting the layout of package down the repo hierarchy
 [tool.hatch.build.targets.wheel]
-packages = ["src/sepia2_client"]
+packages = ["src/sepia2_client_py"]
 
 [dependency-groups]
 dev = [
