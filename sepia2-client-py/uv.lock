@@ -173,7 +173,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "grpcio-tools", specifier = ">=1.67.0" },
+    { name = "grpcio-tools", specifier = ">=1.71.0" },
     { name = "setuptools" },
 ]
 
