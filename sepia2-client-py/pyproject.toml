@@ -1,6 +1,6 @@
 [project]
 name = "sepia2-client-py"
-version = "0.1.0"
+version = "0.2.0"
 description = "Sepia2 gRPC client for python, automatically derived from current proto definition"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -21,7 +21,8 @@ packages = ["src/sepia2_client_py"]
 [dependency-groups]
 dev = [
   "ruff>=0.7.2",
-  {include-group = "test"}
+  {include-group = "test"},
+  "mypy-protobuf>=3.6.0",
 ]
 test = ["pytest>=8.3.5"]
 
