@@ -3,6 +3,10 @@ use core::net::SocketAddr;
 use log::{debug, error, info, warn};
 use env_logger::Env;
 use tonic::{transport::Server, Request, Response, Status};
+use thread_priority::{
+    set_current_thread_priority,
+    ThreadPriority,
+};
 
 use sepia2::api::*;
 
@@ -50,6 +54,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     //env_logger::init();
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     println!("Env logger initialized");
+
+    // Set thread priority for the server
+    set_current_thread_priority(ThreadPriority::Max)?;
+
     let args = Args::parse();
 
     // tpc_socket |-> ~pipename
